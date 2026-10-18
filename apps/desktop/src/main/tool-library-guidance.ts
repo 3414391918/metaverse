@@ -31,7 +31,7 @@ export async function savedToolGuidance(
       .map((skill) => `## ${skill.name}\n\n${skill.content}`)
       .join("\n\n");
     files.push({
-      toolId: "creation-context",
+      toolId: "creation",
       path: `${agent.domain}-management.md`,
       content: skills
         ? `${agent.systemPrompt}\n\n${skills}\n`
@@ -51,7 +51,7 @@ export async function savedToolGuidance(
       .map(({ projectDirectory }) => projectDirectory!);
     if (directories.length) {
       files.push({
-        toolId: "creation-context",
+        toolId: "creation",
         path: "libraries.json",
         content:
           JSON.stringify({ libraryDirectories: directories }, null, 2) + "\n"

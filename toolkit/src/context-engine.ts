@@ -54,10 +54,7 @@ export async function runContextAction(
     }
     try {
       const saved = JSON.parse(
-        await readFile(
-          join(root, "tools/creation-context/libraries.json"),
-          "utf8"
-        )
+        await readFile(join(root, "tools/creation/libraries.json"), "utf8")
       ) as { libraryDirectories?: unknown };
       for (const path of ToolkitDirectoriesSchema.parse(
         saved.libraryDirectories ?? []
@@ -106,7 +103,7 @@ export async function runContextAction(
     }
     return { libraries, warnings };
   }
-  const stateDirectory = join(root, "tools/creation-context/.state");
+  const stateDirectory = join(root, "tools/creation/.state");
   await mkdir(stateDirectory, { recursive: true });
   const store = new FolderCatalogStore({ userDataPath: stateDirectory });
   if (action === "createLibrary") {

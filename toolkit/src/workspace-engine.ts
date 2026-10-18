@@ -1,7 +1,12 @@
 import { dirname, isAbsolute, join } from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
+  createEmptyLongMarkdownFileReference,
   describeWorkspaceToolSchema,
+  longCharacterCoreProfileFileId,
+  longCharacterFilePath,
+  longCharacterRelationshipsFileId,
+  serializeLongCharacterProfileMarkdown,
   WorkspaceToolRequestSchema,
   ToolkitDirectorySchema,
   ToolkitStringSchema,
@@ -12,6 +17,8 @@ import {
   ToolkitDeleteIllustrationInputSchema,
   ToolkitIllustrationReferencesInputSchema,
   ToolkitCharacterAssetsInputSchema,
+  ToolkitCreateCharacterInputSchema,
+  ToolkitAddAppearanceInputSchema,
   CreateLongBookInputSchema,
   LongCommitChapterInputSchema,
   LongDeleteCharacterAppearanceInputSchema,
@@ -221,6 +228,116 @@ export async function runWorkspaceAction(
         directory,
         LongSaveCharacterProfileInputSchema.parse(characterInput)
       );
+    case "character.create": {
+      const parsed = ToolkitCreateCharacterInputSchema.parse(input);
+      if (
+        !opened.book.workspaceIndex.characterTypes.some(
+          ({ id }) => id === parsed.group
+        )
+      )
+        throw new Error("人物分类不存在，请重新读取小说索引。");
+      if (
+        opened.book.workspaceIndex.characters.some(
+          ({ group, name }) => group === parsed.group && name === parsed.name
+        )
+      )
+        throw new Error("该分类中已有同名人物，请先读取现有档案。");
+      const characterId = `character_${randomUUID().replaceAll("-", "")}`;
+      const updatedAt = new Date().toISOString();
+      const coreProfile = createEmptyLongMarkdownFileReference(
+        longCharacterCoreProfileFileId(characterId),
+        longCharacterFilePath(characterId, "core-profile.md"),
+        updatedAt
+      );
+      const relationships = createEmptyLongMarkdownFileReference(
+        longCharacterRelationshipsFileId(characterId),
+        longCharacterFilePath(characterId, "relationships.md"),
+        updatedAt
+      );
+      const appearances = (parsed.appearances ?? []).map((appearance) => ({
+        id: `appearance_${randomUUID().replaceAll("-", "")}`,
+        ...appearance
+      }));
+      const profile = {
+        name: parsed.name,
+        keywords: parsed.keywords ?? "",
+        faceDescription: parsed.faceDescription,
+        settingDescription: parsed.settingDescription,
+        appearances
+      };
+      const batch = LongWorkspaceOperationBatchSchema.parse({
+        updatedAt,
+        operations: [
+          {
+            type: "character.create",
+            character: {
+              id: characterId,
+              name: parsed.name,
+              group: parsed.group,
+              order: 1,
+              aliases: []
+            },
+            files: { characterId, coreProfile, relationships }
+          }
+        ],
+        documentWrites: [
+          {
+            proposalId: `proposal_${randomUUID().replaceAll("-", "")}`,
+            fileId: coreProfile.id,
+            mode: "create",
+            content: serializeLongCharacterProfileMarkdown(profile),
+            updatedAt,
+            reason: "创建人物核心档案"
+          }
+        ]
+      });
+      await applyWorkspaceOperations(ctx, directory, { batch });
+      for (const { id: appearanceId } of appearances)
+        await prepareCharacterAppearanceDirectory(ctx, directory, {
+          bookId,
+          characterId,
+          appearanceId
+        });
+      return readCharacterProfile(ctx, directory, { bookId, characterId });
+    }
+    case "appearance.add": {
+      const parsed = ToolkitAddAppearanceInputSchema.parse(input);
+      const current = await readCharacterProfile(ctx, directory, {
+        bookId,
+        characterId: parsed.characterId
+      });
+      if (current.revision !== parsed.expectedRevision)
+        throw new Error("角色档案已更新，请重新读取后再新增形象。");
+      if (current.profile.appearances.some(({ name }) => name === parsed.name))
+        throw new Error("该角色已有同名形象，请先核对现有形象。");
+      const appearanceId = `appearance_${randomUUID().replaceAll("-", "")}`;
+      await saveCharacterProfile(ctx, directory, {
+        bookId,
+        characterId: parsed.characterId,
+        expectedRevision: parsed.expectedRevision,
+        profile: {
+          ...current.profile,
+          appearances: [
+            ...current.profile.appearances,
+            {
+              id: appearanceId,
+              name: parsed.name,
+              description: parsed.description
+            }
+          ]
+        }
+      });
+      const prepared = await prepareCharacterAppearanceDirectory(
+        ctx,
+        directory,
+        {
+          bookId,
+          characterId: parsed.characterId,
+          appearanceId
+        }
+      );
+      return { appearanceId, ...prepared };
+    }
     case "appearance.prepare":
       return prepareCharacterAppearanceDirectory(
         ctx,

@@ -93,7 +93,163 @@ export class ToolLibraryStore {
       await writeToolText(marker, JSON.stringify({ version: 1 }) + "\n");
     }
     await this.installAddedVoiceDesign(root);
+    await this.mergeCreationTools(root);
     return root;
+  }
+
+  private async mergeCreationTools(root: string): Promise<void> {
+    const marker = join(root, ".creation-merged-v1.json");
+    try {
+      await lstat(marker);
+      return;
+    } catch (error) {
+      if (!missing(error)) throw error;
+    }
+    const oldIds = ["creation-context", "workspace"] as const;
+    const existing: string[] = [];
+    for (const id of oldIds) {
+      try {
+        const info = await lstat(join(root, id));
+        if (!info.isDirectory() || info.isSymbolicLink())
+          throw new Error(`旧工具目录不可用：${id}`);
+        existing.push(id);
+      } catch (error) {
+        if (!missing(error)) throw error;
+      }
+    }
+    if (!existing.length) {
+      await writeToolText(marker, JSON.stringify({ version: 1 }) + "\n");
+      return;
+    }
+    const creation = join(root, "creation");
+    try {
+      const info = await lstat(creation);
+      if (!info.isDirectory() || info.isSymbolicLink())
+        throw new Error("创作工具目录不可用。");
+    } catch (error) {
+      if (!missing(error)) throw error;
+      await cp(join(this.defaultsDirectory, "creation"), creation, {
+        recursive: true
+      });
+    }
+    const archive = join(creation, "legacy");
+    await mkdir(archive, { recursive: true });
+    for (const [id, name] of [
+      ["creation", "creation.md"],
+      ["creation-context", "context.md"],
+      ["workspace", "workspace.md"]
+    ] as const) {
+      try {
+        await cp(join(root, id, "SKILL.md"), join(archive, name), {
+          force: false,
+          errorOnExist: true
+        });
+      } catch (error) {
+        if (
+          !missing(error) &&
+          (error as NodeJS.ErrnoException).code !== "EEXIST"
+        )
+          throw error;
+      }
+    }
+    for (const [id, name] of [
+      ["workspace", "runtime"],
+      ["creation-context", ".state"]
+    ] as const) {
+      try {
+        await cp(
+          join(root, id, name),
+          join(creation, id === "workspace" ? "legacy/runtime" : ".state"),
+          { recursive: true, force: true }
+        );
+      } catch (error) {
+        if (!missing(error)) throw error;
+      }
+    }
+    for (const name of [
+      "libraries.json",
+      "material-management.md",
+      "skill-management.md"
+    ]) {
+      try {
+        await cp(join(root, "creation-context", name), join(creation, name));
+      } catch (error) {
+        if (!missing(error)) throw error;
+      }
+    }
+    for (const [id, name] of [
+      ["workspace", "workspace-cli.mjs"],
+      ["creation-context", "context-cli.mjs"]
+    ] as const) {
+      try {
+        await cp(join(root, id, "cli.mjs"), join(archive, name));
+      } catch (error) {
+        if (!missing(error)) throw error;
+      }
+    }
+    const source = join(this.defaultsDirectory, "creation");
+    for (const name of [
+      "SKILL.md",
+      "workspace.md",
+      "context.md",
+      "cli.mjs",
+      "context-cli.mjs",
+      "tool.json"
+    ])
+      await cp(join(source, name), join(creation, name));
+    await cp(join(source, "runtime"), join(creation, "runtime"), {
+      recursive: true,
+      force: true
+    });
+    for (const item of await readdir(root, { withFileTypes: true })) {
+      if (!item.isDirectory() || item.isSymbolicLink()) continue;
+      const manifestPath = join(root, item.name, "tool.json");
+      let manifest: Record<string, unknown>;
+      try {
+        manifest = JSON.parse(await readToolText(manifestPath)) as Record<
+          string,
+          unknown
+        >;
+      } catch (error) {
+        if (missing(error)) continue;
+        throw error;
+      }
+      const related = manifest.relatedToolIds;
+      if (
+        !Array.isArray(related) ||
+        !related.some(
+          (id) => typeof id === "string" && oldIds.some((oldId) => oldId === id)
+        )
+      )
+        continue;
+      manifest.relatedToolIds = [
+        ...new Set(
+          related.map((id) =>
+            typeof id === "string" && oldIds.some((oldId) => oldId === id)
+              ? "creation"
+              : id
+          )
+        )
+      ].filter((id) => id !== item.name);
+      await writeToolText(
+        manifestPath,
+        JSON.stringify(manifest, null, 2) + "\n"
+      );
+      if (item.name === "illustration" || item.name === "voice-design") {
+        const skillPath = join(root, item.name, "SKILL.md");
+        const original = await readToolText(skillPath);
+        const updated = original
+          .replaceAll("../workspace/SKILL.md", "../creation/workspace.md")
+          .replaceAll("../creation-context/SKILL.md", "../creation/context.md")
+          .replaceAll("创作空间工具", "创作工具的空间操作")
+          .replaceAll("创作上下文工具", "创作工具的上下文操作")
+          .replaceAll("`workspace`", "`creation`");
+        if (updated !== original) await writeToolText(skillPath, updated);
+      }
+    }
+    for (const id of existing)
+      await rm(join(root, id), { recursive: true, force: true });
+    await writeToolText(marker, JSON.stringify({ version: 1 }) + "\n");
   }
 
   private async installAddedVoiceDesign(root: string): Promise<void> {

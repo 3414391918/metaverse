@@ -1,8 +1,0 @@
-{
-  "version": 1,
-  "id": "workspace",
-  "name": "创作空间工具",
-  "description": "独立运行的小说文件 CLI：世界观、人物、剧情、正文、连续性账本和形象目录。",
-  "entryFile": "SKILL.md",
-  "relatedToolIds": []
-}

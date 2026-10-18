@@ -1,6 +1,6 @@
 ---
 name: virtual-world-illustration
-description: 为虚拟世界小说的指定章节或剧情片段设计连续静态插图，并通过创作空间工具按剧情顺序插入正文。
+description: 为虚拟世界小说的指定章节或剧情片段设计连续静态插图，并通过创作工具的空间操作按剧情顺序插入正文。
 ---
 
 # 插图工具（常规版）
@@ -9,14 +9,14 @@ description: 为虚拟世界小说的指定章节或剧情片段设计连续静�
 
 ## 关联工具
 
-- [创作空间工具](../workspace/SKILL.md)：`index`、`read`、`search`、`character.read`、`character.assets`、`illustration.references`、`illustration.add`。
-- [创作上下文工具](../creation-context/SKILL.md)：按需读取本书约束、有关技能和素材；不要整库加载。
+- [创作工具的空间操作](../creation/workspace.md)：`index`、`read`、`search`、`character.read`、`character.assets`、`illustration.references`、`illustration.add`。
+- [创作工具的上下文操作](../creation/context.md)：按需读取本书约束、有关技能和素材；不要整库加载。
 - [连续插图提示词模板](prompt-template.md)：先规划整组镜头与连续性锚点，再逐张填写；不将多个先后发生的动作压进同一张图。
 - [设计依据](research.md)：图像生成文档、视觉叙事研究与本工具的取舍。
 
 ## 输入定位与上下文
 
-1. 确定小说的绝对目录。调用创作空间工具 `index` 找到章节和正文文件；用户给出一段剧情时，用 `search` 定位到对应章节，再用 `read` 完整读取正文，确定插入位置。找不到唯一位置时，结合章节标题、相邻段落和用户用语继续定位；仍不明确才询问用户。
+1. 确定小说的绝对目录。调用创作工具的空间操作 `index` 找到章节和正文文件；用户给出一段剧情时，用 `search` 定位到对应章节，再用 `read` 完整读取正文，确定插入位置。找不到唯一位置时，结合章节标题、相邻段落和用户用语继续定位；仍不明确才询问用户。
 2. 阅读目标片段和必要的前后文，将剧情按时间顺序拆成若干有画面价值的节拍。先列出整组镜头：序号、对应段落、当前动作或情绪转折、人物与道具状态、场景位置、计划插入点。数量由剧情节拍决定，不预设固定张数，也不为了凑数重复同一瞬间；整章任务应覆盖关键起因、推进和结果。每张图只呈现**一个瞬间**，相邻图片共同表现动作的先后。不要为了插图而改写剧情。
 3. 对本次场景，在前文章节中用 `search` 查场景名、别名和关键物件。对相关章节调用 `illustration.references`，获得已引用插图的绝对路径和邻近正文。把与当前场景对应的已保存图片作为场景参考输入给生图工具；没有既有图片时，以已确认的场景文字为准。尤其注意同一建筑的空间布局、陈设和色彩。
 4. 对出场角色调用 `character.read` 获取脸部身材、设定与形象说明，再调用 `character.assets` 获取各形象的资产图绝对路径。根据剧情时间和服装选对形象，向生图工具提供相关脸部、全身和角度资产图。角色的脸、发型、服装与身份以这些资产和已确认设定为准，不自行换装或混用不同形象。
@@ -31,7 +31,7 @@ description: 为虚拟世界小说的指定章节或剧情片段设计连续静�
 
 ## 插入正文
 
-1. 生图工具产出本地 PNG 绝对路径后，通过创作空间工具 `read` 再读取目标正文，取得最新 `sha256`。按该次返回的 `content` 计算插入位置：`offset` 是 JavaScript 字符串索引，和 Node.js `indexOf` / `slice` 一致。应放在所描绘段落之后；用户指定精确位置时优先遵守。
+1. 生图工具产出本地 PNG 绝对路径后，通过创作工具的空间操作 `read` 再读取目标正文，取得最新 `sha256`。按该次返回的 `content` 计算插入位置：`offset` 是 JavaScript 字符串索引，和 Node.js `indexOf` / `slice` 一致。应放在所描绘段落之后；用户指定精确位置时优先遵守。
 2. 调用 `illustration.add`，传入 `chapterCardId`、本地 `imagePath`、正文 `expectedSha256` 和 `offset`。该接口会验证文件、按现有顺序生成 `001.png` 等名字，并以一次事务写入章节的 `images/` 文件和 `![](images/001.png)` 正文引用。不要自行复制进章节目录或手改引用来绕过接口。
 3. 每生成一张就按镜头顺序插入其剧情段落之后，再重新 `read` 获取新内容与哈希，定位下一张的插入点。不能沿用上一张的 offset 或哈希；接口提示正文已更新时重新定位后再试，避免重复插入。写入后调用 `read` 和 `illustration.references` 核对整组引用的顺序、路径和位置。这里只核对文件与正文结果，不要求 Agent 主观检查成图质量。
 4. 向用户按剧情顺序报告整组镜头、章节段落、图片绝对路径和风格，并说明哪些已插入、哪些因能力或调用错误未完成。用户未要求修改剧情文字时，不修改剧情文字。
@@ -50,4 +50,4 @@ description: 为虚拟世界小说的指定章节或剧情片段设计连续静�
 {"action":"illustration.add","input":{"chapterCardId":"从 index 取得的章节 ID","imagePath":"/生成图片的绝对路径/scene.png","expectedSha256":"read 返回的 sha256","offset":1234}}
 ```
 
-需要移除误插入的图片时，先用 `read` 取得最新正文哈希，再用 `illustration.references` 确认图片文件名和引用位置；调用 `illustration.delete` 并传入 `chapterCardId`、`filename`、`expectedSha256`、`offset`。同一图片还有其它引用时，只移除指定位置的引用。实际字段格式可用 `{"action":"schema","input":{"name":"illustration.add"}}` 或 `illustration.delete` 查询。调用 CLI 的方式见[创作空间工具](../workspace/SKILL.md)。
+需要移除误插入的图片时，先用 `read` 取得最新正文哈希，再用 `illustration.references` 确认图片文件名和引用位置；调用 `illustration.delete` 并传入 `chapterCardId`、`filename`、`expectedSha256`、`offset`。同一图片还有其它引用时，只移除指定位置的引用。实际字段格式可用 `{"action":"schema","input":{"name":"illustration.add"}}` 或 `illustration.delete` 查询。调用 CLI 的方式见[创作工具的空间操作](../creation/workspace.md)。

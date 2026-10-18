@@ -47,6 +47,100 @@ async function setup() {
   return { root, work, directory, defaults, store };
 }
 describe("editable tool library", () => {
+  it("merges legacy creation tools without dropping edited guidance", async () => {
+    const { store, directory, defaults } = await setup();
+    await store.list();
+    await rm(join(directory, ".creation-merged-v1.json"));
+    const source = join(defaults, "creation");
+    await mkdir(join(source, "runtime"), { recursive: true });
+    for (const name of [
+      "SKILL.md",
+      "workspace.md",
+      "context.md",
+      "cli.mjs",
+      "context-cli.mjs",
+      "tool.json"
+    ])
+      await writeFile(
+        join(source, name),
+        name === "tool.json"
+          ? JSON.stringify({
+              version: 1,
+              id: "creation",
+              name: "创作工具",
+              description: "",
+              entryFile: "SKILL.md",
+              relatedToolIds: []
+            })
+          : `new ${name}`
+      );
+    await writeFile(join(source, "runtime/engine.mjs"), "new runtime");
+    await mkdir(join(directory, "creation-context"));
+    await mkdir(join(directory, "workspace/runtime"), { recursive: true });
+    await writeFile(
+      join(directory, "creation-context/SKILL.md"),
+      "旧上下文规则"
+    );
+    await writeFile(
+      join(directory, "creation-context/material-management.md"),
+      "用户素材规则"
+    );
+    await writeFile(
+      join(directory, "creation-context/libraries.json"),
+      '{"libraryDirectories":[]}'
+    );
+    await writeFile(
+      join(directory, "creation-context/cli.mjs"),
+      "old context cli"
+    );
+    await writeFile(join(directory, "workspace/SKILL.md"), "旧空间规则");
+    await writeFile(join(directory, "workspace/cli.mjs"), "old workspace cli");
+    await writeFile(
+      join(directory, "workspace/runtime/engine.mjs"),
+      "old runtime"
+    );
+    await mkdir(join(directory, "creation"));
+    await writeFile(join(directory, "creation/SKILL.md"), "用户旧创作规则");
+    await writeFile(
+      join(directory, "creation/writing-rules.md"),
+      "用户写作规则"
+    );
+    await writeFile(
+      join(directory, "beta/tool.json"),
+      JSON.stringify({
+        version: 1,
+        id: "beta",
+        name: "beta",
+        description: "",
+        entryFile: "SKILL.md",
+        relatedToolIds: ["workspace", "creation-context"]
+      })
+    );
+    const tools = (await store.list()).tools;
+    expect(tools.map(({ id }) => id)).not.toContain("workspace");
+    expect(tools.map(({ id }) => id)).not.toContain("creation-context");
+    expect(tools.find(({ id }) => id === "beta")?.relatedToolIds).toEqual([
+      "creation"
+    ]);
+    expect(
+      await readFile(join(directory, "creation/material-management.md"), "utf8")
+    ).toBe("用户素材规则");
+    expect(
+      await readFile(join(directory, "creation/writing-rules.md"), "utf8")
+    ).toBe("用户写作规则");
+    expect(
+      await readFile(join(directory, "creation/legacy/creation.md"), "utf8")
+    ).toBe("用户旧创作规则");
+    expect(
+      await readFile(
+        join(directory, "creation/legacy/runtime/engine.mjs"),
+        "utf8"
+      )
+    ).toBe("old runtime");
+    expect(
+      await readFile(join(directory, "creation/runtime/engine.mjs"), "utf8")
+    ).toBe("new runtime");
+  });
   it("adds voice design once to an existing work directory and respects later deletion", async () => {
     const { store, directory, defaults } = await setup();
     await store.list();

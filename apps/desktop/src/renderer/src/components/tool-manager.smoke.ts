@@ -6,9 +6,15 @@ export async function runToolManagerRendererSmoke() {
   const api = window.deepwrite?.toolLibrary;
   if (!api) throw new Error("Tool library API missing");
   const before = await api.list();
-  for (const id of ["creation", "creation-context", "workspace"])
+  for (const id of ["creation", "illustration"])
     if (!before.tools.some((item) => item.id === id))
       throw new Error(`Default tool missing: ${id}`);
+  if (
+    before.tools.some((item) =>
+      ["creation-context", "workspace"].includes(item.id)
+    )
+  )
+    throw new Error("Legacy creation tools remain visible");
   if (document.querySelector(".conversation-pane"))
     throw new Error("Retired conversation UI remains mounted");
   const host = document.createElement("div");
@@ -70,14 +76,20 @@ export async function runToolManagerRendererSmoke() {
       ).content.endsWith("界面保存验收。\n")
     )
       throw new Error("Tool save did not persist");
-    button("创作上下文工具 →").click();
-    await wait(() => Boolean(current("creation-context")));
-    button("创作空间工具 →").click();
-    await wait(() => Boolean(current("workspace")));
-    button("← 返回上一工具").click();
-    await wait(() => Boolean(current("creation-context")));
-    button("← 返回上一工具").click();
+    button("← 返回工具列表").click();
+    await wait(() => Boolean(host.querySelector(".tool-card:not(:disabled)")));
+    const illustration = [
+      ...host.querySelectorAll<HTMLButtonElement>(".tool-card")
+    ].find(
+      (item) =>
+        item.querySelector("strong")?.textContent === "插图工具（常规版）"
+    )!;
+    illustration.click();
+    await wait(() => Boolean(current("illustration")));
+    button("创作工具 →").click();
     await wait(() => Boolean(current("creation")));
+    button("← 返回上一工具").click();
+    await wait(() => Boolean(current("illustration")));
     button("← 返回工具列表").click();
     await wait(() => Boolean(host.querySelector(".tool-card:not(:disabled)")));
     button("＋ 新增工具").click();
@@ -128,7 +140,7 @@ export async function runToolManagerRendererSmoke() {
     button("编辑", host.querySelector(".tool-relations")!).click();
     await wait(() => Boolean(dialog()));
     const choice = [...dialog().querySelectorAll("label")]
-      .find((item) => item.textContent?.trim() === "创作空间工具")!
+      .find((item) => item.textContent?.trim() === "创作工具")!
       .querySelector<HTMLInputElement>("input")!;
     choice.click();
     await wait(
@@ -137,7 +149,7 @@ export async function runToolManagerRendererSmoke() {
         Boolean(
           host
             .querySelector(".tool-relations")
-            ?.textContent?.includes("创作空间工具")
+            ?.textContent?.includes("创作工具")
         )
     );
     button("关闭弹窗", dialog()).click();
@@ -145,7 +157,7 @@ export async function runToolManagerRendererSmoke() {
     if (
       !(await api.list()).tools
         .find(({ id }) => id === createdId)
-        ?.relatedToolIds.includes("workspace")
+        ?.relatedToolIds.includes("creation")
     )
       throw new Error("Relation save failed");
     button("删除工具").click();

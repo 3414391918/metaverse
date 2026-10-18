@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LongCharacterGroupSchema, LongTitleSchema } from "./long-workspace";
 import {
   LongChapterCardIdSchema,
   LongCharacterIdSchema
@@ -10,7 +11,11 @@ import {
   LongWriteChapterInputSchema
 } from "./long-ledger";
 import { LongWorkspaceOperationBatchSchema } from "./long-workspace-operations";
-import { LongSaveCharacterProfileInputSchema } from "./long-character-profile";
+import {
+  LongCharacterAppearanceSchema,
+  LongCharacterProfileSchema,
+  LongSaveCharacterProfileInputSchema
+} from "./long-character-profile";
 import { LongReadChapterImageInputSchema } from "./long-chapter-image";
 import {
   LongPrepareCharacterAppearanceDirectoryInputSchema,
@@ -44,6 +49,8 @@ export const WorkspaceToolRequestSchema = z
       "character.read",
       "character.assets",
       "character.save",
+      "character.create",
+      "appearance.add",
       "appearance.prepare",
       "appearance.delete",
       "illustration.add",
@@ -126,6 +133,46 @@ export const ToolkitDeleteIllustrationInputSchema = z
 export const ToolkitCharacterAssetsInputSchema = z
   .object({ characterId: LongCharacterIdSchema })
   .strict();
+export const ToolkitCreateCharacterInputSchema = z
+  .object({
+    group: LongCharacterGroupSchema,
+    name: LongTitleSchema,
+    faceDescription: LongCharacterProfileSchema.shape.faceDescription.refine(
+      (value) => value.trim().length > 0,
+      "请填写脸部身材描述。"
+    ),
+    settingDescription:
+      LongCharacterProfileSchema.shape.settingDescription.refine(
+        (value) => value.trim().length > 0,
+        "请填写角色设定描述。"
+      ),
+    keywords: LongCharacterProfileSchema.shape.keywords.optional(),
+    appearances: z
+      .array(
+        LongCharacterAppearanceSchema.pick({
+          name: true,
+          description: true
+        }).extend({
+          description: LongCharacterAppearanceSchema.shape.description.refine(
+            (value) => value.trim().length > 0,
+            "请填写形象文本描述。"
+          )
+        })
+      )
+      .optional()
+  })
+  .strict();
+export const ToolkitAddAppearanceInputSchema = z
+  .object({
+    characterId: LongCharacterIdSchema,
+    name: LongCharacterAppearanceSchema.shape.name,
+    description: LongCharacterAppearanceSchema.shape.description.refine(
+      (value) => value.trim().length > 0,
+      "请填写形象文本描述。"
+    ),
+    expectedRevision: z.string().regex(/^[a-f0-9]{64}$/u)
+  })
+  .strict();
 
 const workspaceSchemas = {
   create: CreateLongBookInputSchema.extend({
@@ -137,6 +184,8 @@ const workspaceSchemas = {
   commitChapter: LongCommitChapterInputSchema,
   deleteLedgerCommit: LongDeleteLedgerCommitInputSchema,
   "character.save": LongSaveCharacterProfileInputSchema,
+  "character.create": ToolkitCreateCharacterInputSchema,
+  "appearance.add": ToolkitAddAppearanceInputSchema,
   "appearance.prepare": LongPrepareCharacterAppearanceDirectoryInputSchema,
   "appearance.delete": LongDeleteCharacterAppearanceInputSchema,
   "illustration.add": ToolkitAddIllustrationInputSchema,
@@ -161,6 +210,8 @@ export function describeWorkspaceToolSchema(rawName: unknown) {
       "commitChapter",
       "deleteLedgerCommit",
       "character.save",
+      "character.create",
+      "appearance.add",
       "appearance.prepare",
       "appearance.delete",
       "illustration.add",

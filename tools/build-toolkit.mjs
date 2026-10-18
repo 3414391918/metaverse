@@ -1,10 +1,11 @@
-import { cp, mkdir } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "vite";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const out = resolve(root, "apps/desktop/out/toolkit");
+await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 await cp(resolve(root, "toolkit/defaults"), out, { recursive: true });
 await build({
@@ -21,7 +22,7 @@ await build({
     ssr: true,
     target: "node24",
     minify: false,
-    outDir: resolve(out, "workspace/runtime"),
+    outDir: resolve(out, "creation/runtime"),
     emptyOutDir: true,
     rollupOptions: {
       input: {

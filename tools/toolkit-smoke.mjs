@@ -17,7 +17,12 @@ try {
       execFileSync(
         process.execPath,
         [
-          join(root, "tools", tool, "cli.mjs"),
+          join(
+            root,
+            "tools",
+            "creation",
+            tool === "context" ? "context-cli.mjs" : "cli.mjs"
+          ),
           "--input",
           "-",
           ...(book ? ["--book", book] : [])
@@ -25,7 +30,7 @@ try {
         { input: JSON.stringify(request), encoding: "utf8" }
       )
     );
-  const created = call("workspace", {
+  const created = call("creation", {
     action: "create",
     input: {
       parentDirectory: join(root, "books"),
@@ -34,11 +39,11 @@ try {
     }
   });
   const book = created.projectDirectory;
-  const index = call("workspace", { action: "index" }, book);
+  const index = call("creation", { action: "index" }, book);
   const fileId = index.workspaceIndex.bookLine.id;
-  const before = call("workspace", { action: "read", input: { fileId } }, book);
+  const before = call("creation", { action: "read", input: { fileId } }, book);
   call(
-    "workspace",
+    "creation",
     {
       action: "write",
       input: {
@@ -50,22 +55,22 @@ try {
     book
   );
   assert.match(
-    call("workspace", { action: "read", input: { fileId } }, book).content,
+    call("creation", { action: "read", input: { fileId } }, book).content,
     /独立工具写入/
   );
   assert.ok(
-    call("workspace", { action: "schema", input: { name: "apply" } }).schema
+    call("creation", { action: "schema", input: { name: "apply" } }).schema
       .properties.operations
   );
   const chapter = index.workspaceIndex.chapters[0];
   assert.ok(chapter, "新建小说应包含可供插图的首章");
   const chapterBefore = call(
-    "workspace",
+    "creation",
     { action: "read", input: { fileId: chapter.body.id } },
     book
   );
   call(
-    "workspace",
+    "creation",
     {
       action: "write",
       input: {
@@ -77,7 +82,7 @@ try {
     book
   );
   const chapterReady = call(
-    "workspace",
+    "creation",
     { action: "read", input: { fileId: chapter.body.id } },
     book
   );
@@ -87,7 +92,7 @@ try {
     sourceImage
   );
   const added = call(
-    "workspace",
+    "creation",
     {
       action: "illustration.add",
       input: {
@@ -103,7 +108,7 @@ try {
   assert.equal(added.reference, "![](images/001.png)");
   assert.match(
     call(
-      "workspace",
+      "creation",
       { action: "read", input: { fileId: chapter.body.id } },
       book
     ).content,
@@ -114,7 +119,7 @@ try {
     await readFile(sourceImage)
   );
   const references = call(
-    "workspace",
+    "creation",
     {
       action: "illustration.references",
       input: { chapterCardId: chapter.chapterCardId }
@@ -128,7 +133,7 @@ try {
   assert.throws(
     () =>
       call(
-        "workspace",
+        "creation",
         {
           action: "illustration.add",
           input: {
@@ -143,12 +148,12 @@ try {
     /章节正文已更新/
   );
   const beforeDelete = call(
-    "workspace",
+    "creation",
     { action: "read", input: { fileId: chapter.body.id } },
     book
   );
   const deleted = call(
-    "workspace",
+    "creation",
     {
       action: "illustration.delete",
       input: {
@@ -163,7 +168,7 @@ try {
   assert.equal(deleted.fileDeleted, true);
   assert.doesNotMatch(
     call(
-      "workspace",
+      "creation",
       { action: "read", input: { fileId: chapter.body.id } },
       book
     ).content,
@@ -171,8 +176,55 @@ try {
   );
   await assert.rejects(readFile(added.imagePath), { code: "ENOENT" });
   assert.ok(
-    call("workspace", { action: "schema", input: { name: "character.assets" } })
+    call("creation", { action: "schema", input: { name: "character.assets" } })
       .schema.properties.characterId
+  );
+  const character = call(
+    "creation",
+    {
+      action: "character.create",
+      input: {
+        group: "protagonist",
+        name: "测试人物",
+        faceDescription: "黑发，身形修长",
+        settingDescription: "来自山门的修士",
+        appearances: [{ name: "常服", description: "青色常服" }]
+      }
+    },
+    book
+  );
+  assert.equal(character.profile.faceDescription, "黑发，身形修长");
+  assert.equal(character.profile.appearances[0].description, "青色常服");
+  const addedAppearance = call(
+    "creation",
+    {
+      action: "appearance.add",
+      input: {
+        characterId: character.characterId,
+        name: "礼服",
+        description: "白色礼服",
+        expectedRevision: character.revision
+      }
+    },
+    book
+  );
+  assert.match(addedAppearance.assetsDirectory, /appearance_/);
+  const afterAppearance = call(
+    "creation",
+    {
+      action: "character.read",
+      input: { characterId: character.characterId }
+    },
+    book
+  );
+  assert.deepEqual(
+    afterAppearance.profile.appearances.map(({ name }) => name),
+    ["常服", "礼服"]
+  );
+  assert.ok(
+    call("creation", { action: "index" }, book).workspaceIndex.characters.some(
+      ({ id }) => id === character.characterId
+    )
   );
   const batch = {
     updatedAt: new Date().toISOString(),
@@ -183,10 +235,10 @@ try {
       }
     ]
   };
-  call("workspace", { action: "preview", input: batch }, book);
-  call("workspace", { action: "apply", input: batch }, book);
+  call("creation", { action: "preview", input: batch }, book);
+  call("creation", { action: "apply", input: batch }, book);
   assert.equal(
-    call("workspace", { action: "index" }, book).workspaceIndex.featureSettings
+    call("creation", { action: "index" }, book).workspaceIndex.featureSettings
       .worldbuildingItemLayout,
     "left-tree"
   );
@@ -195,12 +247,12 @@ try {
       await readFile(join(book, ".virtual-world-created.json"), "utf8")
     ).version
   );
-  const library = call("creation-context", {
+  const library = call("context", {
     action: "createLibrary",
     input: { domain: "skill", name: "写作方法", skillKind: "general" }
   });
   const directory = library.projectDirectory;
-  const entry = call("creation-context", {
+  const entry = call("context", {
     action: "createEntry",
     input: {
       libraryDirectory: directory,
@@ -210,17 +262,31 @@ try {
     }
   });
   assert.equal(
-    call("creation-context", {
+    call("context", {
       action: "read",
       input: { libraryDirectory: directory, entryId: entry.id }
     }).entry.content,
     "检查因果。"
   );
-  const context = call("creation-context", {
+  const context = call("context", {
     action: "bookContext",
     input: { bookDirectory: book }
   });
   assert.equal(context.libraries.libraries.length, 1);
+  assert.equal(
+    await readFile(join(root, "tools", "creation", "tool.json"), "utf8").then(
+      (text) => JSON.parse(text).name
+    ),
+    "创作工具"
+  );
+  await assert.rejects(
+    readFile(join(root, "tools", "workspace", "tool.json")),
+    { code: "ENOENT" }
+  );
+  await assert.rejects(
+    readFile(join(root, "tools", "creation-context", "tool.json")),
+    { code: "ENOENT" }
+  );
   const voiceTool = join(root, "tools", "voice-design");
   assert.equal(
     JSON.parse(await readFile(join(voiceTool, "tool.json"), "utf8")).id,
