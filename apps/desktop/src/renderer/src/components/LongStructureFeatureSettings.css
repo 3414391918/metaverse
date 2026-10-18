@@ -1,0 +1,34 @@
+.feature-settings-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.feature-setting-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem);
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 0.75rem;
+  background: var(--surface-raised);
+}
+
+.feature-setting-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.3rem;
+}
+
+.feature-setting-copy span {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 42rem) {
+  .feature-setting-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}

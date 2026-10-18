@@ -1,0 +1,68 @@
+appId: cn.deepwrite.desktop
+productName: 元宇宙
+artifactName: "${productName}-${version}-${os}-${arch}-test.${ext}"
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - "!out/runtime/**/*"
+  - package.json
+  - from: "out/runtime/${os}-${arch}/node_modules"
+    to: out/node_modules
+    filter:
+      - "**/*"
+
+asar: true
+asarUnpack:
+  - "out/runtime/${os}-${arch}/node_modules/**/*"
+beforeBuild: ./scripts/electron-builder-before-build.cjs
+
+extraMetadata:
+  homepage: https://github.com/3414391918/metaverse
+  desktopName: 元宇宙
+
+publish:
+  provider: generic
+  url: https://github.com/3414391918/metaverse/releases/latest/download
+  channel: latest
+
+mac:
+  extendInfo:
+    NSMicrophoneUsageDescription: "用于与小说角色进行实时语音对话。"
+  target:
+    - dmg
+    - zip
+  icon: build/icon.png
+  category: public.app-category.productivity
+  identity: "-"
+  hardenedRuntime: false
+  notarize: false
+
+win:
+  target: nsis
+  icon: build/icon.ico
+  requestedExecutionLevel: asInvoker
+  forceCodeSigning: false
+
+linux:
+  target:
+    - AppImage
+    - deb
+  icon: build/icon.png
+  category: Office
+  executableName: metaverse
+  maintainer: carswj <wenjia@wenjiadeMacBook-Air.local>
+  vendor: 元宇宙
+  syncDesktopName: true
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: 元宇宙
+  deleteAppDataOnUninstall: false

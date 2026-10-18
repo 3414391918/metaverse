@@ -1,0 +1,310 @@
+<div v-if="loading" class="panel-state" aria-live="polite">
+  正在加载子智能体团队设置…
+</div>
+<div
+  v-else-if="loadError && !settings"
+  class="panel-state panel-load-error"
+  role="alert"
+>
+  <strong>子智能体团队设置未加载</strong>
+  <p>{{ loadError }}</p>
+  <button
+    type="button"
+    class="secondary-button"
+    :disabled="loading"
+    @click="emit('retry')"
+  >
+    重新加载
+  </button>
+</div>
+<div v-else-if="!settings || !activeTeam" class="panel-state">
+  暂无可用的子智能体团队设置。
+</div>
+
+<div v-else class="team-layout">
+  <div class="team-editor">
+    <header class="team-heading">
+      <div>
+        <span>主智能体</span>
+        <h3>{{ parentAgentLabel }}</h3>
+        <p>{{ PARENT_AGENT_DESCRIPTION }}</p>
+        <p>
+          子智能体默认跟随所属主智能体的模型，也可单独配置模型。它继承主智能体的工具与审批策略，工具不包含技能加载；不继承主智能体提示词、会话或技能库，且不能继续创建子智能体、不能绕过用户审批。每次调用以自己的系统提示词为主，运行时额外附带可用工具清单和交接长度约束。它直接用工具改文档，还是把结论交回主智能体，完全由你写的系统提示词决定。
+        </p>
+      </div>
+      <div class="team-heading-actions">
+        <button
+          type="button"
+          class="secondary-button"
+          :disabled="
+            formDisabled ||
+            activeTeam.subagents.length >= LONG_AGENT_SUBAGENT_MAX_COUNT
+          "
+          @click="openLoadFromSkill"
+        >
+          <AppIcon name="wand" :size="15" />
+          从技能库加载
+        </button>
+        <button
+          type="button"
+          class="secondary-button"
+          :disabled="
+            formDisabled ||
+            activeTeam.subagents.length >= LONG_AGENT_SUBAGENT_MAX_COUNT
+          "
+          @click="addSubagent()"
+        >
+          <AppIcon name="plus" :size="15" />
+          新增子智能体
+        </button>
+      </div>
+    </header>
+
+    <div v-if="!activeTeam.subagents.length" class="empty-team">
+      <strong>还没有子智能体</strong>
+      <p>新增后，主智能体会根据能力说明决定何时委派任务。</p>
+    </div>
+
+    <div v-else class="subagent-list">
+      <article
+        v-for="(definition, index) in activeTeam.subagents"
+        :key="definition.id"
+        class="subagent-card"
+        :class="{ 'is-editing': editingSubagentId === definition.id }"
+      >
+        <header class="subagent-summary">
+          <div class="subagent-copy">
+            <div class="subagent-title-row">
+              <strong>{{ definition.name || "未命名子智能体" }}</strong>
+              <span :class="{ 'is-disabled': !definition.enabled }">
+                {{ definition.enabled ? "已启用" : "已停用" }}
+              </span>
+              <span class="model-badge"
+                >{{ subagentModelSummary(definition) }}</span
+              >
+            </div>
+            <p>
+              {{ definition.description ||
+              "补充能力说明，让主智能体知道何时调用它。" }}
+            </p>
+          </div>
+          <label
+            class="enable-toggle"
+            :title="definition.enabled ? '停用' : '启用'"
+          >
+            <input
+              type="checkbox"
+              :checked="definition.enabled"
+              :disabled="formDisabled"
+              :aria-label="`${definition.name || '子智能体'}启用状态`"
+              @change="toggleSubagent(definition, $event)"
+            />
+          </label>
+          <button
+            type="button"
+            class="icon-button"
+            :disabled="formDisabled"
+            :aria-label="`编辑${definition.name}`"
+            @click="editSubagent(definition.id)"
+          >
+            <AppIcon name="edit" :size="15" />
+          </button>
+          <button
+            type="button"
+            class="icon-button"
+            :disabled="
+              formDisabled ||
+              activeTeam.subagents.length >= LONG_AGENT_SUBAGENT_MAX_COUNT
+            "
+            :aria-label="`复制${definition.name}`"
+            title="复制"
+            @click="duplicateSubagent(index)"
+          >
+            <AppIcon name="copy" :size="15" />
+          </button>
+          <button
+            type="button"
+            class="icon-button is-danger"
+            :disabled="formDisabled"
+            :aria-label="`删除${definition.name}`"
+            @click="removeSubagent(index)"
+          >
+            <AppIcon name="trash" :size="15" />
+          </button>
+        </header>
+
+        <div v-if="editingSubagentId === definition.id" class="subagent-form">
+          <div class="form-field">
+            <span>模型配置</span>
+            <div
+              class="model-mode-options"
+              role="radiogroup"
+              aria-label="子智能体模型配置"
+            >
+              <label
+                :class="{ 'is-selected': definition.modelMode !== 'custom' }"
+              >
+                <input
+                  type="radio"
+                  :name="`long-subagent-model-mode-${definition.id}`"
+                  value="inherit"
+                  :checked="definition.modelMode !== 'custom'"
+                  :disabled="formDisabled"
+                  @change="setModelMode(definition, 'inherit')"
+                />
+                跟随主智能体
+              </label>
+              <label
+                :class="{ 'is-selected': definition.modelMode === 'custom' }"
+              >
+                <input
+                  type="radio"
+                  :name="`long-subagent-model-mode-${definition.id}`"
+                  value="custom"
+                  :checked="definition.modelMode === 'custom'"
+                  :disabled="formDisabled"
+                  @change="setModelMode(definition, 'custom')"
+                />
+                单独配置模型
+              </label>
+            </div>
+            <div
+              v-if="definition.modelMode === 'custom'"
+              class="model-run-settings"
+            >
+              <PopupSelect
+                class="model-select"
+                :model-value="definition.modelId ?? ''"
+                :options="modelOptions"
+                accessible-label="选择子智能体模型"
+                placeholder="请选择模型"
+                size="large"
+                :disabled="formDisabled || modelOptions.length === 0"
+                :menu-min-width="260"
+                :menu-z-index="1200"
+                @update:model-value="setModelId(definition, String($event))"
+              >
+                <template #prefix><AppIcon name="model" :size="14" /></template>
+              </PopupSelect>
+              <PopupSelect
+                class="model-select"
+                :model-value="definition.thinkingLevel ?? ''"
+                :options="thinkingOptionsFor(definition)"
+                accessible-label="选择子智能体思考等级"
+                placeholder="请选择思考等级"
+                size="large"
+                :disabled="formDisabled || !definition.modelId"
+                :menu-min-width="200"
+                :menu-z-index="1200"
+                @update:model-value="
+                  setThinkingLevel(definition, String($event))
+                "
+              >
+                <template #prefix><AppIcon name="brain" :size="14" /></template>
+              </PopupSelect>
+              <PopupSelect
+                v-if="definition.thinkingLevel === 'off'"
+                class="model-select"
+                :model-value="definition.temperature ?? ''"
+                :options="temperatureOptionsFor(definition)"
+                accessible-label="选择子智能体温度"
+                placeholder="请选择温度"
+                size="large"
+                :disabled="formDisabled || !definition.modelId"
+                :menu-min-width="180"
+                :menu-z-index="1200"
+                @update:model-value="
+                  setTemperature(definition, Number($event))
+                "
+              >
+                <template #prefix
+                  ><AppIcon name="temperature" :size="14"
+                /></template>
+              </PopupSelect>
+              <p v-if="modelOptions.length === 0" class="model-empty-hint">
+                暂无可用模型，请先在「模型配置」中添加。
+              </p>
+            </div>
+          </div>
+          <label class="form-field">
+            <span>名称</span>
+            <input
+              v-model="definition.name"
+              type="text"
+              :maxlength="SHORT_AGENT_SUBAGENT_NAME_MAX_LENGTH"
+              :disabled="formDisabled"
+              placeholder="例如：连续性审阅"
+            />
+          </label>
+          <label class="form-field">
+            <span>能力说明</span>
+            <textarea
+              v-model="definition.description"
+              class="description-input"
+              :maxlength="SHORT_AGENT_SUBAGENT_DESCRIPTION_MAX_LENGTH"
+              :disabled="formDisabled"
+              placeholder="说明擅长处理什么任务，供主智能体选择调用。"
+            />
+          </label>
+          <label class="form-field">
+            <span>系统提示词</span>
+            <textarea
+              v-model="definition.systemPrompt"
+              class="prompt-input"
+              :maxlength="SHORT_AGENT_SUBAGENT_SYSTEM_PROMPT_MAX_LENGTH"
+              :disabled="formDisabled"
+              spellcheck="false"
+              placeholder="定义子智能体的职责、工作方法和交接要求。"
+            />
+          </label>
+          <div class="form-meta">
+            <span>ID：<code>{{ definition.id }}</code></span>
+            <button
+              type="button"
+              :disabled="formDisabled"
+              @click="finishEditing"
+            >
+              完成编辑
+            </button>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <footer class="panel-actions">
+      <span
+        >当前主智能体 {{ activeTeam.subagents.length }}/{{
+        LONG_AGENT_SUBAGENT_MAX_COUNT }}</span
+      >
+      <button
+        type="button"
+        class="primary-button"
+        :disabled="formDisabled"
+        @click="saveSettings"
+      >
+        <AppIcon name="save" :size="15" />
+        {{ saving ? "保存中…" : "保存子智能体团队" }}
+      </button>
+    </footer>
+  </div>
+</div>
+
+<LoadSubagentFromSkillDialog
+  :open="loadFromSkillOpen"
+  :parent-agent-id="parentAgentId"
+  :parent-agent-label="parentAgentLabel"
+  :existing-subagent-names="
+    (activeTeam?.subagents ?? []).map((item) => item.name)
+  "
+  :skills="skills"
+  :models="models"
+  :preferred-model-id="preferredModelId"
+  :generating="authoringGenerating"
+  :draft="authoringDraft"
+  :status-text="authoringStatusText"
+  :error="authoringError"
+  @close="closeLoadFromSkill"
+  @generate="emit('authoringGenerate', $event)"
+  @stop="emit('authoringStop')"
+  @confirm="confirmLoadFromSkill"
+/>

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "id": "creation",
+  "name": "创作工具",
+  "description": "由外部 Agent 执行的小说创作流程：准备上下文、设计、写作、检查和连续性整理。",
+  "entryFile": "SKILL.md",
+  "relatedToolIds": ["creation-context", "workspace"]
+}

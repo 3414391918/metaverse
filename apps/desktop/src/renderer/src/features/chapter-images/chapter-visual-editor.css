@@ -1,0 +1,42 @@
+.chapter-visual-editor {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+}
+
+.chapter-visual-text {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  field-sizing: content;
+  padding: 0;
+  overflow: hidden;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  white-space: pre-wrap;
+}
+
+.chapter-visual-text:focus-visible {
+  outline: 1px solid
+    color-mix(in srgb, var(--theme-foreground) 22%, transparent);
+  outline-offset: 4px;
+}
+
+.chapter-visual-text[readonly] {
+  color: var(--text-secondary);
+}
+
+.chapter-visual-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1rem auto;
+  border-radius: 8px;
+}

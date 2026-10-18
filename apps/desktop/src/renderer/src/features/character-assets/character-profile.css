@@ -1,0 +1,154 @@
+.character-profile {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 28px clamp(16px, 4vw, 52px) 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  background: var(--surface-main);
+  color: var(--text-primary);
+  font-size: var(--body-font-size, 14px);
+}
+.character-profile-heading,
+.character-appearance-heading,
+.character-field-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.character-profile-heading span,
+.character-appearance-heading span {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+}
+.character-profile-more {
+  position: relative;
+  align-self: center;
+}
+.character-profile-more > button {
+  color: var(--text-secondary);
+  letter-spacing: 3px;
+  min-width: 46px;
+}
+.character-profile-more-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 145px;
+  display: grid;
+  padding: 6px;
+  border: 1px solid var(--theme-line);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  box-shadow: 0 14px 32px #0005;
+}
+.character-profile-more-menu button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  box-shadow: none;
+}
+.character-profile h1 {
+  font-size: 2em;
+  line-height: 1.35;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+.character-profile h2 {
+  margin: 0 0 4px;
+  font-size: 1.15em;
+}
+.character-field,
+.character-appearances {
+  border: 1px solid var(--theme-line-soft);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+.character-field input,
+.character-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  border: 1px solid var(--theme-line);
+  border-radius: 9px;
+  padding: 12px;
+  background: var(--surface-main);
+  color: var(--text-primary);
+  font: inherit;
+  line-height: 1.7;
+}
+.character-field textarea {
+  resize: vertical;
+  min-height: 84px;
+}
+.character-field input:focus,
+.character-field textarea:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+}
+.character-field-heading strong {
+  font-weight: 600;
+}
+.character-dirty {
+  color: var(--text-tertiary);
+  font-size: 0.8em;
+  margin-right: auto;
+}
+.character-profile button,
+.character-dialog button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--theme-line);
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: var(--surface-main);
+  color: var(--text-primary);
+}
+.character-profile button.character-save,
+.character-dialog button.character-save {
+  background: var(--text-primary);
+  color: var(--surface-main);
+  border-color: var(--text-primary);
+}
+.character-profile button:disabled,
+.character-dialog button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.character-dialog button.character-danger {
+  background: #b52f3f;
+  border-color: #b52f3f;
+  color: #fff;
+}
+.character-appearance-body {
+  display: grid;
+  gap: 18px;
+}
+.character-appearance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.character-appearance-heading {
+  flex-wrap: wrap;
+}
+.character-appearance-body .character-field {
+  background: var(--surface-main);
+}
+.character-help {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+}
+.character-profile-empty {
+  color: var(--text-secondary);
+  padding: 24px 0;
+}

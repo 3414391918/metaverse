@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "id": "voice-design",
+  "name": "声音设计工具",
+  "description": "读取小说角色设定，由外部 Agent 设计声音提示词，并通过 FishAudio 创建声音。",
+  "entryFile": "SKILL.md",
+  "relatedToolIds": ["workspace"]
+}

@@ -1,0 +1,37 @@
+.desktop-shell.manual-workspace-shell {
+  grid-template-columns: var(--left-pane-width) minmax(0, 1fr);
+}
+.desktop-shell.manual-workspace-shell.is-left-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+.desktop-shell.manual-workspace-shell > .long-workspace-editor,
+.desktop-shell.manual-workspace-shell > .editor-pane,
+.desktop-shell.manual-workspace-shell > .workspace-settings-main-view,
+.desktop-shell.manual-workspace-shell > .fish-audio-manager,
+.desktop-shell.manual-workspace-shell > main,
+.desktop-shell.manual-workspace-shell > .manual-workspace-empty {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  width: auto;
+}
+.manual-workspace-shell > .tool-manager-main-view {
+  padding: 0;
+}
+.manual-workspace-empty {
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+}
+.manual-expand-sidebar {
+  position: absolute;
+  top: 14px;
+  left: 12px;
+  z-index: 30;
+}
+.manual-workspace-shell.is-left-collapsed
+  > .long-workspace-editor
+  .long-editor-heading,
+.manual-workspace-shell.is-left-collapsed > .editor-pane .editor-header {
+  padding-left: 44px;
+}

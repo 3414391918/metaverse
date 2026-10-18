@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "id": "creation-context",
+  "name": "创作上下文工具",
+  "description": "按需读取和维护技能库、素材库与本书约束，整合原资料管理方法。",
+  "entryFile": "SKILL.md",
+  "relatedToolIds": ["workspace"]
+}

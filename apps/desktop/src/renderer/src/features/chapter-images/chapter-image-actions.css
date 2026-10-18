@@ -1,0 +1,71 @@
+.chapter-image-menu-dismiss {
+  position: fixed;
+  inset: 0;
+  z-index: 2350;
+}
+.chapter-image-menu {
+  position: absolute;
+  display: grid;
+  min-width: 160px;
+  padding: 5px;
+  border: 1px solid var(--theme-line);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: 0 10px 36px #0004;
+}
+.chapter-image-menu button {
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 9px 14px;
+}
+.chapter-image-menu button:hover,
+.chapter-image-menu button:focus-visible {
+  background: var(--surface-hover);
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  padding: 8px 14px;
+  border: 1px solid var(--theme-line);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--text-primary);
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.chapter-image-replacement {
+  display: grid;
+  gap: 14px;
+}
+.chapter-image-replacement p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+.chapter-image-replacement > button {
+  justify-self: start;
+}
+.chapter-image-paste-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 190px;
+  border: 1px dashed var(--theme-line);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface-main);
+  color: var(--text-secondary);
+}
+.chapter-image-paste-area img {
+  display: block;
+  max-width: 100%;
+  max-height: min(45vh, 440px);
+  object-fit: contain;
+}
+.chapter-image-confirm {
+  background: var(--button-primary-bg, var(--text-primary));
+  color: var(--button-primary-text, var(--surface-main));
+}

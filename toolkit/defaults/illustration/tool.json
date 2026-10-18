@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "id": "illustration",
+  "name": "插图工具（常规版）",
+  "description": "按章节或剧情片段规划连续镜头，检索场景与角色资产，逐张生成静态插图并按剧情顺序写入正文。",
+  "entryFile": "SKILL.md",
+  "relatedToolIds": ["workspace", "creation-context"]
+}
