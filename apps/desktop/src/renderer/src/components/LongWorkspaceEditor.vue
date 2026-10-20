@@ -2267,6 +2267,8 @@ onBeforeUnmount(() => {
           @illustration-added="illustrations.accept"
           @illustration-deleted="illustrations.acceptDeletion"
           @illustration-busy="illustrationWritePending = $event"
+          @video-added="illustrations.acceptVideo"
+          @video-deleted="illustrations.acceptVideoDeletion"
         />
         <div
           v-else-if="

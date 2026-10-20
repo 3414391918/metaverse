@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { renderMarkdown } from "./renderMarkdown";
 
 describe("renderMarkdown", () => {
+  it("renders local chapter videos as playable media", () => {
+    const output = renderMarkdown("!video[](videos/001.mp4)", {
+      resolveImageUrl: (source) =>
+        source === "videos/001.mp4"
+          ? "deepwrite-image://book/demo/chapter/videos/001.mp4"
+          : undefined
+    });
+    expect(output).toContain(
+      '<video src="deepwrite-image://book/demo/chapter/videos/001.mp4" controls preload="metadata" playsinline></video>'
+    );
+  });
   it("renders chapter-relative Markdown images through a supplied URL resolver", () => {
     const output = renderMarkdown("图像 ![封面](images/001.png)", {
       resolveImageUrl: (source) =>

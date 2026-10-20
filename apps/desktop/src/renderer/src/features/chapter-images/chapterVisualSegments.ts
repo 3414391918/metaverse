@@ -1,5 +1,5 @@
 export interface ChapterVisualSegment {
-  kind: "text" | "image";
+  kind: "text" | "image" | "video";
   start: number;
   end: number;
   source: string;
@@ -26,11 +26,13 @@ export function splitChapterVisualSegments(
   resolveImageUrl: (source: string) => string | undefined
 ): ChapterVisualSegment[] {
   const segments: ChapterVisualSegment[] = [];
-  const expression = /!\[([^\]\n]*)\]\(([^)\n]+)\)/g;
+  const expression =
+    /!video\[\]\((videos\/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:mp4|webm))\)|!\[([^\]\n]*)\]\(([^)\n]+)\)/gi;
   let cursor = 0;
   for (const match of content.matchAll(expression)) {
     const start = match.index;
-    const source = match[2] ?? "";
+    const videoSource = match[1];
+    const source = videoSource ?? match[3] ?? "";
     const url = resolveImageUrl(source);
     if (!url) continue;
     segments.push({
@@ -41,13 +43,13 @@ export function splitChapterVisualSegments(
     });
     const end = start + match[0].length;
     segments.push({
-      kind: "image",
+      kind: videoSource ? "video" : "image",
       start,
       end,
       source: match[0],
       url,
       imageSource: source,
-      alt: match[1] ?? ""
+      alt: match[2] ?? ""
     });
     cursor = end;
   }

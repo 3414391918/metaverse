@@ -1,4 +1,4 @@
-import { cp, mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
+import { cp, mkdtemp, mkdir, readFile, realpath, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -12,6 +12,25 @@ try {
     recursive: true
   });
   await mkdir(join(root, "books"), { recursive: true });
+  // Each editable CLI runtime must remain usable when the other runtime is updated.
+  const isolatedContext = join(root, "context-only", "tools", "creation");
+  await mkdir(join(isolatedContext, "runtime"), { recursive: true });
+  await cp(
+    join(root, "tools", "creation", "context-cli.mjs"),
+    join(isolatedContext, "context-cli.mjs")
+  );
+  await cp(
+    join(root, "tools", "creation", "runtime", "context-engine.mjs"),
+    join(isolatedContext, "runtime", "context-engine.mjs")
+  );
+  const isolatedList = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [join(isolatedContext, "context-cli.mjs"), "--input", "-"],
+      { input: JSON.stringify({ action: "list" }), encoding: "utf8" }
+    )
+  );
+  assert.deepEqual(isolatedList.libraries, []);
   const call = (tool, request, book) =>
     JSON.parse(
       execFileSync(
@@ -220,6 +239,118 @@ try {
   assert.deepEqual(
     afterAppearance.profile.appearances.map(({ name }) => name),
     ["常服", "礼服"]
+  );
+  const template = call(
+    "creation",
+    {
+      action: "character.create",
+      input: {
+        group: "major_supporting",
+        name: "慕天香",
+        faceDescription: "清秀面容，身形高挑",
+        settingDescription: "风系修士",
+        appearances: [{ name: "形象1", description: "绿色常服" }]
+      }
+    },
+    book
+  );
+  assert.ok(
+    call("creation", { action: "schema", input: { name: "appearance.catalog" } })
+      .schema.properties.limit
+  );
+  const firstAppearancePage = call(
+    "creation",
+    { action: "appearance.catalog", input: { limit: 1 } },
+    book
+  );
+  const secondAppearancePage = call(
+    "creation",
+    {
+      action: "appearance.catalog",
+      input: { offset: firstAppearancePage.nextOffset, limit: 1 }
+    },
+    book
+  );
+  assert.equal(firstAppearancePage.total, 2);
+  assert.equal(firstAppearancePage.characters.length, 1);
+  assert.equal(secondAppearancePage.nextOffset, null);
+  assert.deepEqual(
+    [firstAppearancePage, secondAppearancePage]
+      .flatMap(({ characters }) => characters.map(({ name }) => name))
+      .sort(),
+    ["慕天香", "测试人物"].sort()
+  );
+  assert.ok(
+    [firstAppearancePage, secondAppearancePage]
+      .flatMap(({ characters }) => characters)
+      .some(({ faceDescription, appearances }) =>
+        faceDescription === "黑发，身形修长" &&
+        appearances.some(({ description }) => description === "白色礼服")
+      )
+  );
+  assert.ok(
+    [firstAppearancePage, secondAppearancePage]
+      .flatMap(({ characters }) => characters)
+      .every((character) =>
+        !Object.hasOwn(character, "settingDescription") &&
+        !Object.hasOwn(character, "assets")
+      )
+  );
+  const templateImage = join(root, "面部特写.png");
+  await cp(sourceImage, templateImage);
+  const canonicalTemplateImage = await realpath(templateImage);
+  call(
+    "creation",
+    {
+      action: "character.assets.import",
+      input: {
+        characterId: template.characterId,
+        appearanceId: template.profile.appearances[0].id,
+        sourcePaths: [canonicalTemplateImage]
+      }
+    },
+    book
+  );
+  const generated = call(
+    "creation",
+    {
+      action: "appearance.prompt",
+      input: {
+        characterId: character.characterId,
+        appearanceId: addedAppearance.appearanceId
+      }
+    },
+    book
+  );
+  assert.match(generated.prompt, /慕天香/);
+  assert.match(generated.prompt, /白色礼服/);
+  assert.match(generated.prompt, /面部特写/);
+  assert.doesNotMatch(generated.prompt, /用户上传的参考形象/);
+  const imported = call(
+    "creation",
+    {
+      action: "character.assets.import",
+      input: {
+        characterId: character.characterId,
+        appearanceId: addedAppearance.appearanceId,
+        sourcePaths: [canonicalTemplateImage]
+      }
+    },
+    book
+  );
+  assert.equal(imported.assets[0].label, "面部特写");
+  assert.equal(
+    call(
+      "creation",
+      {
+        action: "character.assets",
+        input: { characterId: character.characterId }
+      },
+      book
+    ).assets.find(
+      (asset) => asset.appearanceId === addedAppearance.appearanceId
+    )?.available,
+    true
   );
   assert.ok(
     call("creation", { action: "index" }, book).workspaceIndex.characters.some(

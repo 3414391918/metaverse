@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  CHARACTER_APPEARANCE_TEMPLATE_NAME,
+  buildDescribedAppearancePrompt
+} from "@deepwrite/shared";
 import type { LongGetCharacterAppearanceReferencesResult } from "@deepwrite/contracts";
 import CharacterAssetDialog from "./CharacterAssetDialog.vue";
 import PopupSelect from "../../components/PopupSelect.vue";
@@ -15,7 +19,10 @@ const props = defineProps<{
   bookId: string;
   characterId: string;
   locked?: boolean | undefined;
-  create: (name: string) => Promise<CreatedCharacterAppearance | null>;
+  create: (
+    name: string,
+    description?: string
+  ) => Promise<CreatedCharacterAppearance | null>;
 }>();
 const emit = defineEmits<{ close: [] }>();
 const mode = ref<CharacterAppearanceMode | null>(null);
@@ -23,6 +30,7 @@ const references = ref<LongGetCharacterAppearanceReferencesResult | null>(null);
 const referenceCharacter = ref("");
 const referenceAppearance = ref("");
 const name = ref("");
+const description = ref("");
 const loading = ref(false);
 const busy = ref(false);
 const prompt = ref("");
@@ -55,6 +63,29 @@ const appearanceOptions = computed(
 const disabled = computed(() =>
   Boolean(props.locked || loading.value || busy.value)
 );
+const described = computed(() => Boolean(description.value.trim()));
+const fixedTemplate = computed(() => {
+  const candidates =
+    references.value?.characters.filter(
+      (item) => item.name === CHARACTER_APPEARANCE_TEMPLATE_NAME
+    ) ?? [];
+  if (candidates.length !== 1) return null;
+  const character = candidates[0]!;
+  const appearance = character?.appearances.find((item) => item.assets.length);
+  return character && appearance ? { character, appearance } : null;
+});
+function joinAssetPath(directory: string, filename: string) {
+  const separator = directory.includes("\\") ? "\\" : "/";
+  return `${directory.replace(/[\\/]$/u, "")}${separator}${filename}`;
+}
+function bookDirectory(coreProfilePath: string) {
+  const marker = coreProfilePath.search(/[\\/]long[\\/]characters[\\/]/u);
+  if (marker < 0) throw new Error("无法定位当前书籍目录，请重新打开角色档案");
+  return coreProfilePath.slice(0, marker);
+}
+watch(described, (value) => {
+  if (value) mode.value = "make";
+});
 watch(referenceCharacter, () => {
   const appearances = selectedCharacter.value?.appearances ?? [];
   referenceAppearance.value =
@@ -88,21 +119,32 @@ async function confirm() {
   const inventory = references.value,
     source = selectedCharacter.value,
     appearance = selectedAppearance.value;
-  if (!mode.value || !inventory || !source || !appearance) {
-    uiMessage.warning("请选择制作方式、参考角色和参考形象");
+  if (!mode.value || !inventory) {
+    uiMessage.warning("请选择制作方式并等待参考资料读取完成");
     return;
   }
   if (!name.value.trim()) {
     uiMessage.warning("请输入新形象名称");
     return;
   }
+  const template = fixedTemplate.value;
+  if (described.value && !template) {
+    uiMessage.warning("当前书籍缺少慕天香的角色资产模版，请先补齐模版图片");
+    return;
+  }
+  if (!described.value && (!source || !appearance)) {
+    uiMessage.warning("请选择参考角色和参考形象");
+    return;
+  }
   const selectedMode = mode.value;
+  const referenceSource = described.value ? template!.character : source!;
+  const referenceShape = described.value ? template!.appearance : appearance!;
   busy.value = true;
   try {
     await characterApi().prepareCharacterAppearanceDirectory({
       bookId: props.bookId,
-      characterId: source.characterId,
-      appearanceId: appearance.id
+      characterId: referenceSource.characterId,
+      appearanceId: referenceShape.id
     });
     const latest = await characterApi().getCharacterAppearanceReferences({
       bookId: props.bookId,
@@ -110,28 +152,52 @@ async function confirm() {
     });
     if (!alive) return;
     const currentSource = latest.characters.find(
-      (item) => item.characterId === source.characterId
+      (item) => item.characterId === referenceSource.characterId
     );
     const currentAppearance = currentSource?.appearances.find(
-      (item) => item.id === appearance.id
+      (item) => item.id === referenceShape.id
     );
     if (!currentSource || !currentAppearance?.assetsDirectory)
       throw new Error("参考形象已更新，请重新选择参考资料");
-    const result = await props.create(name.value);
+    const result = await props.create(name.value, description.value);
     if (!result || !alive) return;
     const created = result.snapshot.profile.appearances.find(
       (item) => item.id === result.appearanceId
     );
     if (!created) throw new Error("新形象未保存，请重新读取角色档案");
-    prompt.value = buildCharacterAppearancePrompt({
-      mode: selectedMode,
-      targetName: result.snapshot.profile.name,
-      faceDescription: result.snapshot.profile.faceDescription,
-      appearance: created,
-      target: latest.target,
-      reference: currentSource,
-      referenceAppearance: currentAppearance
-    });
+    prompt.value = described.value
+      ? buildDescribedAppearancePrompt({
+          bookDirectory: bookDirectory(latest.target.coreProfilePath),
+          characterId: props.characterId,
+          targetName: result.snapshot.profile.name,
+          faceDescription: result.snapshot.profile.faceDescription,
+          appearanceId: created.id,
+          appearanceName: created.name,
+          description: created.description,
+          assetsDirectory: joinAssetPath(
+            latest.target.assetsDirectory,
+            created.id
+          ),
+          templateAppearanceName: currentAppearance.name,
+          templateAssets: currentAppearance.assets.map((asset) => ({
+            label: asset.label,
+            path: joinAssetPath(
+              asset.directory
+                ? joinAssetPath(currentSource.assetsDirectory, asset.directory)
+                : currentSource.assetsDirectory,
+              asset.filename
+            )
+          }))
+        })
+      : buildCharacterAppearancePrompt({
+          mode: selectedMode,
+          targetName: result.snapshot.profile.name,
+          faceDescription: result.snapshot.profile.faceDescription,
+          appearance: created,
+          target: latest.target,
+          reference: currentSource,
+          referenceAppearance: currentAppearance
+        });
   } catch (error) {
     if (alive)
       uiMessage.error(
@@ -185,7 +251,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
       <template v-if="mode">
-        <label class="appearance-create-field">
+        <label v-if="!described" class="appearance-create-field">
           <span>参考角色</span>
           <PopupSelect
             v-model="referenceCharacter"
@@ -196,7 +262,7 @@ onBeforeUnmount(() => {
             :placeholder="loading ? '正在读取…' : '请选择已有图片的角色'"
           />
         </label>
-        <label class="appearance-create-field">
+        <label v-if="!described" class="appearance-create-field">
           <span>参考形象</span>
           <PopupSelect
             v-model="referenceAppearance"
@@ -219,9 +285,28 @@ onBeforeUnmount(() => {
             @keydown.enter.prevent="confirm"
           />
         </label>
+        <label class="appearance-create-field">
+          <span>新形象文本描述</span>
+          <textarea
+            v-model="description"
+            aria-label="新形象文本描述"
+            rows="5"
+            placeholder="描述目标角色新形象的发型、服装、配饰等。填写后自动使用慕天香形象模版，无需另行上传参考图。"
+            :disabled="disabled"
+          />
+        </label>
         <p class="character-help">
-          确认后创建新形象并提供提示词。参考形象图和特殊说明由你在外部 Agent
-          中补充。
+          {{
+            described
+              ? "确认后保存形象描述，并基于慕天香的形象模版生成角色资产提示词。"
+              : "确认后创建新形象并提供提示词。参考形象图和特殊说明由你在外部 Agent 中补充。"
+          }}
+        </p>
+        <p
+          v-if="described && references && !fixedTemplate"
+          class="character-help"
+        >
+          当前书籍没有带图片的慕天香形象模版。
         </p>
         <p v-if="references && !characterOptions.length" class="character-help">
           当前作品没有带图片的参考角色，请先上传一套角色资产图。
@@ -237,8 +322,11 @@ onBeforeUnmount(() => {
     </div>
     <div v-else class="appearance-prompt-result">
       <p class="character-help">
-        新形象已保存。复制提示词交给 Codex、Claude 等桌面
-        Agent，上传参考图并补充特殊说明后执行。
+        {{
+          described
+            ? "新形象和文本描述已保存。复制提示词交给外部 Agent 生成并导入角色资产。"
+            : "新形象已保存。复制提示词交给外部 Agent，上传参考图并补充特殊说明后执行。"
+        }}
       </p>
       <textarea
         ref="promptField"
@@ -264,7 +352,11 @@ onBeforeUnmount(() => {
         v-else-if="mode"
         type="button"
         class="character-save"
-        :disabled="disabled || !references || !characterOptions.length"
+        :disabled="
+          disabled ||
+          !references ||
+          (described ? !fixedTemplate : !characterOptions.length)
+        "
         @click="confirm"
       >
         {{ busy ? "正在创建…" : "确认并生成提示词" }}

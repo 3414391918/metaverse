@@ -14,6 +14,7 @@ import { LongWorkspaceOperationBatchSchema } from "./long-workspace-operations";
 import {
   LongCharacterAppearanceSchema,
   LongCharacterProfileSchema,
+  LongImportCharacterAssetsAtPathsInputSchema,
   LongSaveCharacterProfileInputSchema
 } from "./long-character-profile";
 import { LongReadChapterImageInputSchema } from "./long-chapter-image";
@@ -48,9 +49,12 @@ export const WorkspaceToolRequestSchema = z
       "deleteLedgerCommit",
       "character.read",
       "character.assets",
+      "character.assets.import",
       "character.save",
       "character.create",
       "appearance.add",
+      "appearance.catalog",
+      "appearance.prompt",
       "appearance.prepare",
       "appearance.delete",
       "illustration.add",
@@ -133,6 +137,20 @@ export const ToolkitDeleteIllustrationInputSchema = z
 export const ToolkitCharacterAssetsInputSchema = z
   .object({ characterId: LongCharacterIdSchema })
   .strict();
+export const ToolkitImportCharacterAssetsInputSchema =
+  LongImportCharacterAssetsAtPathsInputSchema.omit({ bookId: true });
+export const ToolkitAppearancePromptInputSchema = z
+  .object({
+    characterId: LongCharacterIdSchema,
+    appearanceId: LongCharacterAppearanceSchema.shape.id
+  })
+  .strict();
+export const ToolkitAppearanceCatalogInputSchema = z
+  .object({
+    offset: z.number().int().nonnegative().default(0),
+    limit: z.number().int().positive().max(100).default(50)
+  })
+  .strict();
 export const ToolkitCreateCharacterInputSchema = z
   .object({
     group: LongCharacterGroupSchema,
@@ -186,12 +204,15 @@ const workspaceSchemas = {
   "character.save": LongSaveCharacterProfileInputSchema,
   "character.create": ToolkitCreateCharacterInputSchema,
   "appearance.add": ToolkitAddAppearanceInputSchema,
+  "appearance.catalog": ToolkitAppearanceCatalogInputSchema,
+  "appearance.prompt": ToolkitAppearancePromptInputSchema,
   "appearance.prepare": LongPrepareCharacterAppearanceDirectoryInputSchema,
   "appearance.delete": LongDeleteCharacterAppearanceInputSchema,
   "illustration.add": ToolkitAddIllustrationInputSchema,
   "illustration.delete": ToolkitDeleteIllustrationInputSchema,
   "illustration.references": ToolkitIllustrationReferencesInputSchema,
-  "character.assets": ToolkitCharacterAssetsInputSchema
+  "character.assets": ToolkitCharacterAssetsInputSchema,
+  "character.assets.import": ToolkitImportCharacterAssetsInputSchema
 };
 const contextSchemas = {
   createLibrary: CreateLibraryInputSchema,
@@ -212,12 +233,15 @@ export function describeWorkspaceToolSchema(rawName: unknown) {
       "character.save",
       "character.create",
       "appearance.add",
+      "appearance.catalog",
+      "appearance.prompt",
       "appearance.prepare",
       "appearance.delete",
       "illustration.add",
       "illustration.delete",
       "illustration.references",
-      "character.assets"
+      "character.assets",
+      "character.assets.import"
     ])
     .parse(rawName);
   return {

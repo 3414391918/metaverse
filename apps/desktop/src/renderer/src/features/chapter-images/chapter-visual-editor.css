@@ -40,3 +40,12 @@
   margin: 1rem auto;
   border-radius: 8px;
 }
+
+.chapter-visual-video {
+  display: block;
+  width: min(100%, 900px);
+  max-height: 70vh;
+  margin: 1rem auto;
+  border-radius: 8px;
+  background: #000;
+}

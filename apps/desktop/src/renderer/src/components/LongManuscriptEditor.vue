@@ -2,7 +2,9 @@
 import type {
   TextViewMode,
   LongAddChapterImageResult,
-  LongDeleteChapterImageResult
+  LongDeleteChapterImageResult,
+  LongAddChapterVideoResult,
+  LongDeleteChapterVideoResult
 } from "@deepwrite/contracts";
 import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 import DocumentMetaRow from "./DocumentMetaRow.vue";
@@ -12,6 +14,9 @@ import type { ChapterImageContext } from "../features/chapter-images/useChapterI
 import ChapterImagePasteDialog from "../features/chapter-images/ChapterImagePasteDialog.vue";
 import { useChapterIllustrationInsertion } from "../features/chapter-images/useChapterIllustrationInsertion";
 import ChapterVisualEditor from "../features/chapter-images/ChapterVisualEditor.vue";
+import ChapterVideoActions from "../features/chapter-images/ChapterVideoActions.vue";
+import ChapterVideoFileDialog from "../features/chapter-images/ChapterVideoFileDialog.vue";
+import { useChapterVideoInsertion } from "../features/chapter-images/useChapterVideoInsertion";
 import {
   captureChapterViewport,
   restoreChapterViewport,
@@ -67,6 +72,8 @@ const emit = defineEmits<{
     previousContent: string
   ];
   illustrationBusy: [busy: boolean];
+  videoAdded: [result: LongAddChapterVideoResult, previousContent: string];
+  videoDeleted: [result: LongDeleteChapterVideoResult, previousContent: string];
 }>();
 
 const editorElement = ref<HTMLTextAreaElement | null>(null);
@@ -104,14 +111,45 @@ const insertion = useChapterIllustrationInsertion({
   busy: (value) => emit("illustrationBusy", value),
   error: uiMessage.error
 });
+const videoInsertion = useChapterVideoInsertion({
+  context: () => props.imageContext,
+  documentKey: () => props.documentKey,
+  content: () => props.content,
+  savedContent: () => props.savedContent,
+  blocked: () => props.readOnly || props.busy,
+  api: () => {
+    const api = window.deepwrite?.long;
+    if (!api) throw new Error("桌面视频服务不可用。");
+    return api;
+  },
+  added: (result, previous) => {
+    const input = editorElement.value;
+    const scrollTop = props.visual
+      ? (previewElement.value?.scrollTop ?? 0)
+      : (input?.scrollTop ?? 0);
+    emit("videoAdded", result, previous);
+    void nextTick(() => {
+      if (props.visual) {
+        visualEditor.value?.focusRange(result.selectionOffset);
+        if (previewElement.value) previewElement.value.scrollTop = scrollTop;
+      } else if (input && input === editorElement.value) {
+        input.setSelectionRange(result.selectionOffset, result.selectionOffset);
+        input.focus({ preventScroll: true });
+        input.scrollTop = scrollTop;
+      }
+    });
+  },
+  busy: (value) => emit("illustrationBusy", value),
+  error: uiMessage.error
+});
 function handleContextMenu(event: MouseEvent) {
   emit("contextmenu", event);
-  insertion.register(event);
+  insertion.register(event, 0, videoInsertion.open);
 }
 
 function handleVisualContextMenu(event: MouseEvent, baseOffset: number) {
   emit("contextmenu", event);
-  insertion.register(event, baseOffset);
+  insertion.register(event, baseOffset, videoInsertion.open);
 }
 
 function handleVisualSelection(selection: ChapterVisualSelection) {
@@ -225,7 +263,9 @@ function updateTitle(event: Event): void {
         ref="editorElement"
         :value="content"
         class="long-document-editor"
-        :readonly="readOnly || busy || insertion.busy.value"
+        :readonly="
+          readOnly || busy || insertion.busy.value || videoInsertion.busy.value
+        "
         :aria-label="`${title}${format || '正文'}`"
         spellcheck="false"
         @beforeinput="emit('beforeinput', $event)"
@@ -253,18 +293,37 @@ function updateTitle(event: Event): void {
         "
         v-slot="{ resolveUrl }"
       >
-        <ChapterVisualEditor
-          ref="visualEditor"
+        <ChapterVideoActions
+          :context="imageContext"
+          :disabled="busy || readOnly"
           :content="content"
-          :disabled="readOnly || busy || insertion.busy.value"
-          :resolve-image-url="resolveImageUrl ?? (() => undefined)"
-          :display-image-url="resolveUrl"
-          @beforeinput="emit('beforeinput', $event)"
-          @input="emit('visualInput', $event)"
-          @selection="handleVisualSelection"
-          @keydown="emit('keydown', $event)"
-          @text-contextmenu="handleVisualContextMenu"
-        />
+          :saved-content="savedContent"
+          :resolve-video-url="resolveImageUrl"
+          @busy="(value) => emit('illustrationBusy', value)"
+          @deleted="
+            (result, previous) => emit('videoDeleted', result, previous)
+          "
+          v-slot="{ resolveUrl: resolveVideoUrl }"
+        >
+          <ChapterVisualEditor
+            ref="visualEditor"
+            :content="content"
+            :disabled="
+              readOnly ||
+              busy ||
+              insertion.busy.value ||
+              videoInsertion.busy.value
+            "
+            :resolve-image-url="resolveImageUrl ?? (() => undefined)"
+            :display-image-url="resolveUrl"
+            :display-video-url="resolveVideoUrl"
+            @beforeinput="emit('beforeinput', $event)"
+            @input="emit('visualInput', $event)"
+            @selection="handleVisualSelection"
+            @keydown="emit('keydown', $event)"
+            @text-contextmenu="handleVisualContextMenu"
+          />
+        </ChapterVideoActions>
       </ChapterImageActions>
     </article>
   </section>
@@ -277,6 +336,16 @@ function updateTitle(event: Event): void {
     @image="insertion.acceptPng"
     @close="insertion.close"
     @confirm="insertion.confirm"
+  />
+  <ChapterVideoFileDialog
+    v-if="videoInsertion.dialog.value"
+    mode="add"
+    :video="videoInsertion.dialog.value.file"
+    :ready="true"
+    :busy="videoInsertion.busy.value"
+    @video="videoInsertion.accept"
+    @close="videoInsertion.close"
+    @confirm="videoInsertion.confirm"
   />
 </template>
 

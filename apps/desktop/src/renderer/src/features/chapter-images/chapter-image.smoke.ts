@@ -9,6 +9,7 @@ export { runLongEditorPreviewSmoke } from "../../composables/long-editor-preview
 export {
   runCharacterAppearanceRendererSmoke,
   finishCharacterAppearanceRendererSmoke,
+  runDescribedCharacterAppearanceRendererSmoke,
   runCharacterAppearanceDeletionSmoke,
   cleanupCharacterAppearanceSmoke
 } from "../character-assets/character-appearance.smoke";

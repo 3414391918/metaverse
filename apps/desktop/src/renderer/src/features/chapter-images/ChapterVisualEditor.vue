@@ -14,6 +14,7 @@ const props = defineProps<{
   disabled: boolean;
   resolveImageUrl: (source: string) => string | undefined;
   displayImageUrl: (source: string) => string | undefined;
+  displayVideoUrl: (source: string) => string | undefined;
 }>();
 const emit = defineEmits<{
   input: [change: ChapterVisualInput];
@@ -159,7 +160,7 @@ defineExpose({ focusRange, getSelection });
         @contextmenu="emit('textContextmenu', $event, segment.start)"
       />
       <img
-        v-else
+        v-else-if="segment.kind === 'image'"
         class="chapter-visual-image"
         :data-image-offset="segment.start"
         :data-segment-start="segment.start"
@@ -168,6 +169,17 @@ defineExpose({ focusRange, getSelection });
         :alt="segment.alt ?? ''"
         loading="lazy"
         draggable="false"
+      />
+      <video
+        v-else
+        class="chapter-visual-video"
+        :data-video-offset="segment.start"
+        :data-segment-start="segment.start"
+        :data-segment-end="segment.end"
+        :src="displayVideoUrl(segment.imageSource ?? '')"
+        controls
+        preload="metadata"
+        playsinline
       />
     </template>
   </div>

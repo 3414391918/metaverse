@@ -12,6 +12,7 @@ import { isForbiddenRendererCommand } from "./forbidden-commands";
 import { handleLongCommands } from "./long-commands";
 import { handleCharacterAssetCommands } from "./character-asset-commands";
 import { handleChapterImageCommands } from "./chapter-image-commands";
+import { handleChapterVideoCommands } from "./chapter-video-commands";
 import { handleFishAudioCommands } from "./fish-audio-commands";
 import { handleManuscriptCommands } from "./manuscript-commands";
 import { handleRendererStateCommands } from "./renderer-state-commands";
@@ -63,6 +64,7 @@ export async function dispatchCommand(
     (await handleToolLibraryCommands(ctx, command)) ??
     (await handleFishAudioCommands(ctx, command)) ??
     (await handleChapterImageCommands(ctx, command)) ??
+    (await handleChapterVideoCommands(ctx, command)) ??
     (await handleCharacterAssetCommands(ctx, command)) ??
     (await handleAgentTeamCommands(ctx, command)) ??
     (await handleManuscriptCommands(ctx, command)) ??

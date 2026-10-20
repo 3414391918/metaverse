@@ -34,6 +34,7 @@
   line-height: 1.6;
 }
 .appearance-create-field input,
+.appearance-create-field textarea,
 .appearance-prompt-result textarea {
   box-sizing: border-box;
   width: 100%;
@@ -45,9 +46,15 @@
   font: inherit;
 }
 .appearance-create-field input:focus,
+.appearance-create-field textarea:focus,
 .appearance-prompt-result textarea:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+.appearance-create-field textarea {
+  min-height: 120px;
+  line-height: 1.6;
+  resize: vertical;
 }
 .appearance-prompt-result textarea {
   max-height: 55vh;

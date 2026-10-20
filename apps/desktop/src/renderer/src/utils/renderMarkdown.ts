@@ -17,20 +17,25 @@ function escapeHtml(value: string): string {
 function renderInline(value: string, options: RenderMarkdownOptions): string {
   const tokens: string[] = [];
   const tokenized = value.replace(
-    /`(.+?)`|!\[(.*?)\]\((.*?)\)/g,
+    /`(.+?)`|!video\[\]\((videos\/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:mp4|webm))\)|!\[(.*?)\]\((.*?)\)/g,
     (
       match,
       code: string | undefined,
+      videoSource: string | undefined,
       label: string | undefined,
       source: string | undefined
     ) => {
-      const url = source && options.resolveImageUrl?.(source);
+      const url =
+        (videoSource ?? source) &&
+        options.resolveImageUrl?.(videoSource ?? source ?? "");
       if (!code && !url) return match;
       const token = `\u0000${tokens.length}\u0000`;
       tokens.push(
         code
           ? `<code>${escapeHtml(code)}</code>`
-          : `<img src="${escapeHtml(url!)}" alt="${escapeHtml(label!)}" loading=lazy>`
+          : videoSource
+            ? `<video src="${escapeHtml(url!)}" controls preload="metadata" playsinline></video>`
+            : `<img src="${escapeHtml(url!)}" alt="${escapeHtml(label!)}" loading=lazy>`
       );
       return token;
     }

@@ -56,4 +56,19 @@ describe("chapter visual segments", () => {
       source: ""
     });
   });
+  it("keeps video references at their exact source offsets", () => {
+    const source = "开头\n\n!video[](videos/001.mp4)\n\n结尾";
+    const parts = splitChapterVisualSegments(source, (value) =>
+      value.startsWith("videos/")
+        ? `deepwrite-image://book/test/${value}`
+        : undefined
+    );
+    expect(parts.map((part) => part.kind)).toEqual(["text", "video", "text"]);
+    expect(parts.map((part) => part.source).join("")).toBe(source);
+    expect(parts[1]).toMatchObject({
+      kind: "video",
+      start: source.indexOf("!video"),
+      imageSource: "videos/001.mp4"
+    });
+  });
 });

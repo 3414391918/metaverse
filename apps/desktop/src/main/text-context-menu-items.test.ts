@@ -67,6 +67,14 @@ describe("native text menu policy", () => {
       "selectAll"
     ]);
   });
+  it("offers video insertion beside illustration insertion on editable chapter text", () => {
+    const items = build({ canAddIllustration: true, canAddVideo: true });
+    expect(items.slice(-3).map((item) => item.action ?? item.type)).toEqual([
+      "separator",
+      "addIllustration",
+      "addVideo"
+    ]);
+  });
   it("disables selection operations and empty clipboard paste", () => {
     const items = build({ hasSelection: false, hasText: false }, false);
     for (const action of [

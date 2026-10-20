@@ -6,6 +6,9 @@ export function longChapterImageUrl(
   source: string
 ): string | undefined {
   const chapter = longChapterImageDirectoryFromBodyPath(documentPath);
+  const video = /^videos\/([\w.-]+\.(?:mp4|webm))$/i.exec(source)?.[1];
+  if (chapter && video)
+    return `deepwrite-image://book/${bookId}/${chapter}/videos/${video}`;
   const filename = /^images\/([\w.-]+\.(?:png|jpe?g|webp|gif|avif))$/i.exec(
     source
   )?.[1];

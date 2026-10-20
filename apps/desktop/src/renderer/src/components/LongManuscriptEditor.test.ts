@@ -97,12 +97,9 @@ describe("LongManuscriptEditor", () => {
     expect(source).toContain(`v-if="visual"`);
     expect(source).toContain(`v-else`);
     expect(source).toContain("<ChapterVisualEditor");
-    expect(source).toContain(
-      ':disabled="readOnly || busy || insertion.busy.value"'
-    );
-    expect(source).toContain(
-      ':readonly="readOnly || busy || insertion.busy.value"'
-    );
+    expect(source).toContain("readOnly ||");
+    expect(source).toContain("insertion.busy.value ||");
+    expect(source).toContain("videoInsertion.busy.value");
     expect(editorSource).not.toContain(`v-if="viewMode === 'edit'"`);
     expect(editorSource).toContain(
       ':readonly="currentReadOnly || isDocumentContentBusy"'
@@ -115,8 +112,9 @@ describe("LongManuscriptEditor", () => {
     );
     expect(editorSource).toContain(':visual="currentIsDraftBody"');
     expect(editorSource).toContain('@visual-input="recordVisualInput"');
-    expect(source).toContain("insertion.register(event, baseOffset)");
+    expect(source).toContain("insertion.register(event, baseOffset, videoInsertion.open)");
     expect(source).toContain("<ChapterImageActions");
+    expect(source).toContain("<ChapterVideoActions");
     expect(source).toContain('ref="previewElement"');
   });
 

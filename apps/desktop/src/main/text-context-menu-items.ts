@@ -107,5 +107,9 @@ export function buildTextMenuItems(
   ) {
     items.push(separator(), item("addIllustration", "新增插画", true));
   }
+  if (context.kind === "editable" && context.canAddVideo && !context.password) {
+    if (!context.canAddIllustration) items.push(separator());
+    items.push(item("addVideo", "新增视频", true));
+  }
   return items;
 }

@@ -2,6 +2,8 @@ import { computed, type ComputedRef, type Ref } from "vue";
 import type {
   LongAddChapterImageResult,
   LongDeleteChapterImageResult,
+  LongAddChapterVideoResult,
+  LongDeleteChapterVideoResult,
   LongWriteDocumentResult
 } from "@deepwrite/contracts";
 import { longChapterImageDirectoryFromBodyPath } from "@deepwrite/contracts";
@@ -37,7 +39,11 @@ export function useLongEditorIllustrationCommit(options: {
       : undefined;
   });
   function adopt(
-    result: LongAddChapterImageResult | LongDeleteChapterImageResult,
+    result:
+      | LongAddChapterImageResult
+      | LongDeleteChapterImageResult
+      | LongAddChapterVideoResult
+      | LongDeleteChapterVideoResult,
     previousContent: string,
     successMessage: string
   ) {
@@ -77,10 +83,29 @@ export function useLongEditorIllustrationCommit(options: {
   ) {
     adopt(result, previousContent, "图片已删除并保存");
   }
+  function acceptVideo(
+    result: LongAddChapterVideoResult,
+    previousContent: string
+  ) {
+    adopt(result, previousContent, "视频已添加并保存");
+  }
+  function acceptVideoDeletion(
+    result: LongDeleteChapterVideoResult,
+    previousContent: string
+  ) {
+    adopt(result, previousContent, "视频已删除并保存");
+  }
   function canLeave() {
     if (!options.pending.value) return true;
     uiMessage.info("插画正在保存，请稍候再切换。");
     return false;
   }
-  return { imageContext, accept, acceptDeletion, canLeave };
+  return {
+    imageContext,
+    accept,
+    acceptDeletion,
+    acceptVideo,
+    acceptVideoDeletion,
+    canLeave
+  };
 }

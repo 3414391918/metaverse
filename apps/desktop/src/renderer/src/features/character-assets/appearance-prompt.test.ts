@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { buildDescribedAppearancePrompt } from "@deepwrite/shared";
 import { buildCharacterAppearancePrompt } from "./appearance-prompt";
 
 const input = {
@@ -42,6 +43,29 @@ it("describes making a new target appearance using only the chosen template asse
   expect(prompt).toContain("100 字");
   expect(prompt).toContain("1000 字");
   expect(prompt).toContain("不要采用用户上传参考图中的脸部");
+});
+
+it("uses the saved description and fixed template without an uploaded reference", () => {
+  const prompt = buildDescribedAppearancePrompt({
+    bookDirectory: "/tmp/example-book",
+    characterId: "character_new",
+    targetName: "林岚",
+    faceDescription: "深色眼睛，身材修长",
+    appearanceId: "appearance_new",
+    appearanceName: "雨夜",
+    description: "黑色长发，青色雨衣",
+    assetsDirectory: "/tmp/example-book/target/assets/appearance_new",
+    templateAppearanceName: "形象1",
+    templateAssets: [
+      { label: "面部特写", path: "/tmp/example-book/template/face.png" }
+    ]
+  });
+  expect(prompt).toContain("慕天香");
+  expect(prompt).toContain("黑色长发，青色雨衣");
+  expect(prompt).toContain("深色眼睛，身材修长");
+  expect(prompt).toContain("character.assets.import");
+  expect(prompt).toContain("/tmp/example-book/template/face.png");
+  expect(prompt).not.toContain("上传参考图");
 });
 
 it("preserves pose, camera and expression in replacement without adopting an uploaded face", () => {

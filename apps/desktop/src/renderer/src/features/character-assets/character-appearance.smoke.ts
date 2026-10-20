@@ -121,7 +121,7 @@ export async function runCharacterAppearanceRendererSmoke(input: {
       ),
     "loaded references"
   );
-  await select("选择参考角色", "参考角色");
+  await select("选择参考角色", "慕天香");
   await select("选择参考形象", "常服（2 张）");
   const name = document.querySelector<HTMLInputElement>(
     'input[aria-label="新形象名称"]'
@@ -219,6 +219,77 @@ export async function finishCharacterAppearanceRendererSmoke() {
   };
 }
 
+export async function runDescribedCharacterAppearanceRendererSmoke() {
+  if (!live) throw new Error("Appearance smoke editor missing");
+  const input = {
+    bookId: live.props.bookId,
+    characterId: live.props.characterId
+  };
+  clickText(live.host, "＋ 新增形象");
+  await until(
+    () => Boolean(document.querySelector('[data-appearance-mode="make"]')),
+    "described mode dialog"
+  );
+  document
+    .querySelector<HTMLButtonElement>('[data-appearance-mode="make"]')!
+    .click();
+  await until(
+    () =>
+      Boolean(document.querySelector('textarea[aria-label="新形象文本描述"]')),
+    "described appearance field"
+  );
+  const name = document.querySelector<HTMLInputElement>(
+    'input[aria-label="新形象名称"]'
+  )!;
+  name.value = "新版形象";
+  name.dispatchEvent(new Event("input", { bubbles: true }));
+  const description = document.querySelector<HTMLTextAreaElement>(
+    'textarea[aria-label="新形象文本描述"]'
+  )!;
+  description.value = "短发，青色外衣，银色腰饰";
+  description.dispatchEvent(new Event("input", { bubbles: true }));
+  await nextTick();
+  if (document.querySelector('button[aria-label="选择参考角色"]'))
+    throw new Error("Described creation still requires a manual reference");
+  const submit = [
+    ...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')
+  ].find((button) => button.textContent?.trim() === "确认并生成提示词");
+  if (!submit || submit.disabled) {
+    const references =
+      await window.deepwrite!.long.getCharacterAppearanceReferences(input);
+    throw new Error(
+      `Described submit unavailable; references=${references.characters.map((item) => item.name).join(",")}`
+    );
+  }
+  clickText(document.querySelector('[role="dialog"]')!, "确认并生成提示词");
+  await until(
+    () =>
+      Boolean(
+        document.querySelector('textarea[aria-label="新形象制作提示词"]')
+      ),
+    "described prompt"
+  );
+  const prompt = document.querySelector<HTMLTextAreaElement>(
+    'textarea[aria-label="新形象制作提示词"]'
+  )!.value;
+  const saved = await window.deepwrite!.long.readCharacterProfile(input);
+  const appearance = saved.profile.appearances.find(
+    (item) => item.name === "新版形象"
+  );
+  if (
+    !appearance ||
+    appearance.description !== description.value ||
+    !prompt.includes("慕天香") ||
+    !prompt.includes(appearance.id) ||
+    !prompt.includes("character.assets.import") ||
+    prompt.includes("用户上传的参考形象")
+  )
+    throw new Error("Described appearance was not persisted or prompted");
+  clickText(document.querySelector('[role="dialog"]')!, "关闭");
+  await nextTick();
+  return { appearanceId: appearance.id, prompt };
+}
+
 export async function runCharacterAppearanceDeletionSmoke() {
   if (!live) throw new Error("Appearance smoke editor missing");
   const api = window.deepwrite!.long;
@@ -272,11 +343,20 @@ export async function runCharacterAppearanceDeletionSmoke() {
       "delete completed"
     );
     const next = await api.readCharacterProfile(input);
-    if (index === 0)
+    if (index === 0) {
+      const remainingAppearanceIds = new Set(
+        next.profile.appearances.map((item) => item.id)
+      );
+      const expectedAssetIds = before.assets
+        .filter((asset) => remainingAppearanceIds.has(asset.appearanceId))
+        .map((asset) => asset.id)
+        .sort();
       retained =
-        next.assets.length === 1 &&
-        next.assets[0]?.id === before.assets[0]?.id &&
-        next.profile.appearances.length === 2;
+        next.profile.appearances.length ===
+          before.profile.appearances.length - 1 &&
+        JSON.stringify(next.assets.map((asset) => asset.id).sort()) ===
+          JSON.stringify(expectedAssetIds);
+    }
   }
   if (!retained) throw new Error("Deleting a shape removed other appearances");
   const after = await api.readCharacterProfile(input);

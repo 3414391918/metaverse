@@ -19,7 +19,9 @@ const TYPES: Record<string, string> = {
   jpeg: "image/jpeg",
   webp: "image/webp",
   gif: "image/gif",
-  avif: "image/avif"
+  avif: "image/avif",
+  mp4: "video/mp4",
+  webm: "video/webm"
 };
 
 export function registerLongImageScheme(
@@ -62,7 +64,8 @@ function record(value: unknown): Record<string, unknown> | undefined {
 async function registeredChapterDirectory(
   userDataPath: string,
   bookId: string,
-  chapter: string
+  chapter: string,
+  mediaDirectory: "images" | "videos" = "images"
 ): Promise<string | undefined> {
   const registry = record(
     await readBoundedJson(
@@ -99,7 +102,13 @@ async function registeredChapterDirectory(
     )
   )
     return undefined;
-  const directory = join(canonicalRoot, "long", "chapters", chapter, "images");
+  const directory = join(
+    canonicalRoot,
+    "long",
+    "chapters",
+    chapter,
+    mediaDirectory
+  );
   return (await realpath(directory)) === directory ? directory : undefined;
 }
 
@@ -107,8 +116,11 @@ export function createLongImageProtocolHandler(
   userDataPath: string
 ): (request: Request) => Promise<Response> {
   return async (request) => {
-    if (request.method !== "GET") {
-      return new Response(null, { status: 405, headers: { Allow: "GET" } });
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return new Response(null, {
+        status: 405,
+        headers: { Allow: "GET, HEAD" }
+      });
     }
     let url: URL;
     try {
@@ -129,7 +141,12 @@ export function createLongImageProtocolHandler(
       if (url.search) return new Response(null, { status: 400 });
       return await characterAssetImageResponse(userDataPath, url);
     }
+    const videoMatch =
+      /^\/([^/]+)\/([^/]+)\/videos\/([A-Za-z0-9][A-Za-z0-9._-]*\.(mp4|webm))$/i.exec(
+        url.pathname
+      );
     const match =
+      videoMatch ??
       /^\/([^/]+)\/([^/]+)\/([A-Za-z0-9][A-Za-z0-9._-]*\.(png|jpe?g|webp|gif|avif))$/i.exec(
         url.pathname
       );
@@ -145,7 +162,8 @@ export function createLongImageProtocolHandler(
       const directory = await registeredChapterDirectory(
         userDataPath,
         bookId,
-        chapter
+        chapter,
+        videoMatch ? "videos" : "images"
       );
       if (!directory) return new Response(null, { status: 404 });
       const path = join(directory, filename);
@@ -159,18 +177,61 @@ export function createLongImageProtocolHandler(
           await handle.close();
           return new Response(null, { status: 404 });
         }
-        const stream = handle.createReadStream({ autoClose: true });
+        const headers: Record<string, string> = {
+          "Content-Type":
+            TYPES[extension.toLowerCase()] ?? "application/octet-stream",
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff"
+        };
+        let start = 0;
+        let end = info.size - 1;
+        let status = 200;
+        if (videoMatch) {
+          headers["Accept-Ranges"] = "bytes";
+          const range = request.headers.get("range");
+          if (range) {
+            const parts = /^bytes=(\d*)-(\d*)$/u.exec(range);
+            if (!parts || (!parts[1] && !parts[2])) {
+              await handle.close();
+              return new Response(null, {
+                status: 416,
+                headers: { "Content-Range": `bytes */${info.size}` }
+              });
+            }
+            if (!parts[1]) {
+              const count = Number(parts[2]);
+              start = Math.max(0, info.size - count);
+            } else {
+              start = Number(parts[1]);
+              end = parts[2] ? Math.min(Number(parts[2]), end) : end;
+            }
+            if (
+              !Number.isSafeInteger(start) ||
+              !Number.isSafeInteger(end) ||
+              start > end ||
+              start >= info.size
+            ) {
+              await handle.close();
+              return new Response(null, {
+                status: 416,
+                headers: { "Content-Range": `bytes */${info.size}` }
+              });
+            }
+            status = 206;
+            headers["Content-Range"] = `bytes ${start}-${end}/${info.size}`;
+          }
+        }
+        headers["Content-Length"] = String(end - start + 1);
+        if (request.method === "HEAD") {
+          await handle.close();
+          return new Response(null, { status, headers });
+        }
+        const stream = handle.createReadStream({ start, end, autoClose: true });
         return new Response(
           Readable.toWeb(stream) as ReadableStream<Uint8Array>,
           {
-            status: 200,
-            headers: {
-              "Content-Type":
-                TYPES[extension.toLowerCase()] ?? "application/octet-stream",
-              "Content-Length": String(info.size),
-              "Cache-Control": "no-store",
-              "X-Content-Type-Options": "nosniff"
-            }
+            status,
+            headers
           }
         );
       } catch (error) {

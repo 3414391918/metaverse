@@ -1,4 +1,8 @@
 import { dirname, isAbsolute, join } from "node:path";
+import {
+  CHARACTER_APPEARANCE_TEMPLATE_NAME,
+  buildDescribedAppearancePrompt
+} from "@deepwrite/shared";
 import { createHash, randomUUID } from "node:crypto";
 import {
   createEmptyLongMarkdownFileReference,
@@ -17,6 +21,9 @@ import {
   ToolkitDeleteIllustrationInputSchema,
   ToolkitIllustrationReferencesInputSchema,
   ToolkitCharacterAssetsInputSchema,
+  ToolkitImportCharacterAssetsInputSchema,
+  ToolkitAppearanceCatalogInputSchema,
+  ToolkitAppearancePromptInputSchema,
   ToolkitCreateCharacterInputSchema,
   ToolkitAddAppearanceInputSchema,
   CreateLongBookInputSchema,
@@ -48,6 +55,8 @@ import {
 } from "../../apps/desktop/src/utilities/long-project-store/character-profiles";
 import { prepareCharacterAppearanceDirectory } from "../../apps/desktop/src/utilities/long-project-store/character-appearance-directory";
 import { deleteCharacterAppearance } from "../../apps/desktop/src/utilities/long-project-store/character-appearance-delete";
+import { importCharacterAssetsAtPaths } from "../../apps/desktop/src/utilities/long-project-store/character-assets";
+import { characterAppearanceStorage } from "../../apps/desktop/src/utilities/long-character-appearance-paths";
 import { writeChapter } from "../../apps/desktop/src/utilities/long-project-store/write-chapter";
 import { commitChapter } from "../../apps/desktop/src/utilities/long-project-store/commit-chapter";
 import { deleteLedgerCommit } from "../../apps/desktop/src/utilities/long-project-store/delete-ledger-commit";
@@ -222,6 +231,20 @@ export async function runWorkspaceAction(
         )
       };
     }
+    case "character.assets.import": {
+      const parsed = ToolkitImportCharacterAssetsInputSchema.parse(input);
+      const snapshot = await importCharacterAssetsAtPaths(ctx, directory, {
+        ...parsed,
+        bookId
+      });
+      return {
+        characterId: parsed.characterId,
+        appearanceId: parsed.appearanceId,
+        assets: snapshot.assets.filter(
+          (asset) => asset.appearanceId === parsed.appearanceId
+        )
+      };
+    }
     case "character.save":
       return saveCharacterProfile(
         ctx,
@@ -337,6 +360,114 @@ export async function runWorkspaceAction(
         }
       );
       return { appearanceId, ...prepared };
+    }
+    case "appearance.catalog": {
+      const { offset, limit } = ToolkitAppearanceCatalogInputSchema.parse(input);
+      const all = opened.book.workspaceIndex.characters;
+      const selected = all.slice(offset, offset + limit);
+      const characters = await Promise.all(
+        selected.map(async ({ id, name, group }) => {
+          const { profile } = await readCharacterProfile(ctx, directory, {
+            bookId,
+            characterId: id
+          });
+          return {
+            characterId: id,
+            name,
+            group,
+            faceDescription: profile.faceDescription,
+            appearances: profile.appearances.map(
+              ({ id: appearanceId, name: appearanceName, description }) => ({
+                appearanceId,
+                name: appearanceName,
+                description
+              })
+            )
+          };
+        })
+      );
+      const consumed = offset + selected.length;
+      return {
+        total: all.length,
+        offset,
+        nextOffset: consumed < all.length ? consumed : null,
+        characters
+      };
+    }
+    case "appearance.prompt": {
+      const parsed = ToolkitAppearancePromptInputSchema.parse(input);
+      const targetFile = opened.book.workspaceIndex.characterFiles.find(
+        (entry) => entry.characterId === parsed.characterId
+      );
+      if (!targetFile) throw new Error("找不到目标角色的核心档案。");
+      const target = await readCharacterProfile(ctx, directory, {
+        bookId,
+        characterId: parsed.characterId
+      });
+      const appearance = target.profile.appearances.find(
+        (item) => item.id === parsed.appearanceId
+      );
+      if (!appearance) throw new Error("目标形象不存在。");
+      const templateCharacters = opened.book.workspaceIndex.characters.filter(
+        (item) => item.name === CHARACTER_APPEARANCE_TEMPLATE_NAME
+      );
+      if (templateCharacters.length !== 1)
+        throw new Error("当前书籍需要且只能有一个慕天香角色作为形象模版。");
+      const templateCharacter = templateCharacters[0]!;
+      const templateFile = opened.book.workspaceIndex.characterFiles.find(
+        (entry) => entry.characterId === templateCharacter.id
+      );
+      if (!templateFile) throw new Error("慕天香的核心档案不存在。");
+      const template = await readCharacterProfile(ctx, directory, {
+        bookId,
+        characterId: templateCharacter.id
+      });
+      const templateAppearance = template.profile.appearances.find((item) =>
+        template.assets.some((asset) => asset.appearanceId === item.id)
+      );
+      if (!templateAppearance) throw new Error("慕天香的形象模版没有资产图。");
+      await characterAppearanceStorage(
+        directory,
+        templateFile.coreProfile.path,
+        template.assets
+          .filter((asset) => asset.appearanceId === templateAppearance.id)
+          .map((asset) =>
+            asset.directory
+              ? `${asset.directory}/${asset.filename}`
+              : asset.filename
+          )
+      );
+      const templateAssets = (
+        await listCharacterAssets(
+          directory,
+          templateFile.coreProfile.path,
+          template
+        )
+      ).filter((asset) => asset.appearanceId === templateAppearance.id);
+      if (templateAssets.some((asset) => !asset.available))
+        throw new Error("慕天香的参考资产缺失，请先修复角色资产。");
+      const targetStorage = await characterAppearanceStorage(
+        directory,
+        targetFile.coreProfile.path
+      );
+      return {
+        appearanceId: appearance.id,
+        prompt: buildDescribedAppearancePrompt({
+          bookDirectory: directory,
+          characterId: parsed.characterId,
+          targetName: target.profile.name,
+          faceDescription: target.profile.faceDescription,
+          appearanceId: appearance.id,
+          appearanceName: appearance.name,
+          description: appearance.description,
+          assetsDirectory: join(targetStorage.assetsDirectory, appearance.id),
+          templateAppearanceName: templateAppearance.name,
+          templateAssets: templateAssets.map(({ label, path }) => ({
+            label,
+            path
+          }))
+        })
+      };
     }
     case "appearance.prepare":
       return prepareCharacterAppearanceDirectory(

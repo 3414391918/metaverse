@@ -110,6 +110,24 @@ describe("long image protocol", () => {
       Buffer.from([137, 80, 78, 71])
     );
   });
+  it("streams a registered chapter video with byte ranges for seeking", async () => {
+    const { userData, imageDirectory } = await fixture();
+    const videos = join(imageDirectory, "..", "videos");
+    await mkdir(videos);
+    await writeFile(join(videos, "001.mp4"), Buffer.from("0123456789"));
+    const handler = createLongImageProtocolHandler(userData);
+    const videoUrl = `deepwrite-image://book/${bookId}/${chapter}/videos/001.mp4`;
+    const full = await handler(new Request(videoUrl));
+    expect(full.status).toBe(200);
+    expect(full.headers.get("Content-Type")).toBe("video/mp4");
+    await full.arrayBuffer();
+    const partial = await handler(
+      new Request(videoUrl, { headers: { Range: "bytes=2-5" } })
+    );
+    expect(partial.status).toBe(206);
+    expect(partial.headers.get("Content-Range")).toBe("bytes 2-5/10");
+    expect(Buffer.from(await partial.arrayBuffer()).toString()).toBe("2345");
+  });
   it("allows a single content revision for immediate reload and rejects arbitrary queries", async () => {
     const { userData } = await fixture();
     const handler = createLongImageProtocolHandler(userData);

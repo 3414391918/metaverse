@@ -2,6 +2,12 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
+export {
+  CHARACTER_APPEARANCE_TEMPLATE_NAME,
+  buildDescribedAppearancePrompt,
+  type DescribedAppearancePromptInput
+} from "./character-appearance-prompt";
+
 /** 8-character lowercase hex from 4 random bytes. */
 export function randomHex8(): string {
   const bytes = new Uint8Array(4);

@@ -1,5 +1,6 @@
 import { LongCharacterProfileCommandSchemas } from "./long-character-profile-commands";
 import { LongChapterImageCommandSchemas } from "./long-chapter-image";
+import { LongChapterVideoCommandSchemas } from "./long-chapter-video";
 import { z } from "zod";
 import { EnvelopeBaseSchema } from "./envelope";
 import {
@@ -189,6 +190,7 @@ export const LongDeleteLedgerCommitCommandEnvelopeSchema =
   });
 export const LongWorkspaceCommandSchemas = [
   ...LongChapterImageCommandSchemas,
+  ...LongChapterVideoCommandSchemas,
   ...LongCharacterProfileCommandSchemas,
   LongResolveConflictsCommandEnvelopeSchema,
   LongCreateBookCommandEnvelopeSchema,

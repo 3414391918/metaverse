@@ -1,5 +1,6 @@
 import { handleLongCharacterProfileCoreCommand } from "./long-character-profile-core-commands";
 import { handleLongChapterImageCoreCommand } from "./long-chapter-image-core-commands";
+import { handleLongChapterVideoCoreCommand } from "./long-chapter-video-core-commands";
 import {
   LongApplyOperationsResultSchema,
   LongApplyLegacySyncResultSchema,
@@ -31,6 +32,8 @@ export async function handleLongCoreCommand(
 ): Promise<CommandResult | undefined> {
   const imageResult = await handleLongChapterImageCoreCommand(service, command);
   if (imageResult) return imageResult;
+  const videoResult = await handleLongChapterVideoCoreCommand(service, command);
+  if (videoResult) return videoResult;
   const characterResult = await handleLongCharacterProfileCoreCommand(
     service,
     command

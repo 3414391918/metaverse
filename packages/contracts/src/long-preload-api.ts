@@ -61,6 +61,17 @@ import type {
   LongResolveConflictsInput,
   LongResolveConflictsResult
 } from "./long-project-recovery";
+import type {
+  LongReadChapterVideoInput,
+  LongReadChapterVideoResult,
+  LongAddChapterVideoInput,
+  LongAddChapterVideoResult,
+  LongReplaceChapterVideoInput,
+  LongReplaceChapterVideoResult,
+  LongDeleteChapterVideoInput,
+  LongDeleteChapterVideoResult,
+  LongCopyChapterVideoResult
+} from "./long-chapter-video";
 export interface LongPreloadApi {
   prepareCharacterAppearanceDirectory(
     input: LongPrepareCharacterAppearanceDirectoryInput
@@ -84,6 +95,21 @@ export interface LongPreloadApi {
     input: LongReadChapterImageInput
   ): Promise<LongCopyChapterImageResult>;
   readClipboardImage(): Promise<LongReadClipboardImageResult>;
+  readChapterVideo(
+    input: LongReadChapterVideoInput
+  ): Promise<LongReadChapterVideoResult>;
+  addChapterVideo(
+    input: LongAddChapterVideoInput
+  ): Promise<LongAddChapterVideoResult>;
+  replaceChapterVideo(
+    input: LongReplaceChapterVideoInput
+  ): Promise<LongReplaceChapterVideoResult>;
+  deleteChapterVideo(
+    input: LongDeleteChapterVideoInput
+  ): Promise<LongDeleteChapterVideoResult>;
+  copyChapterVideo(
+    input: LongReadChapterVideoInput
+  ): Promise<LongCopyChapterVideoResult>;
   readCharacterProfile(
     input: LongReadCharacterProfileInput
   ): Promise<LongCharacterProfileSnapshot>;

@@ -15,7 +15,8 @@ export const TextContextMenuActionSchema = z.enum([
   "delete",
   "selectAll",
   "insertReference",
-  "addIllustration"
+  "addIllustration",
+  "addVideo"
 ]);
 export type TextContextMenuAction = z.infer<typeof TextContextMenuActionSchema>;
 
@@ -27,6 +28,7 @@ export const TextContextMenuContextSchema = z
     hasText: z.boolean(),
     canInsertReference: z.boolean(),
     canAddIllustration: z.boolean().optional(),
+    canAddVideo: z.boolean().optional(),
     history: z.object({ canUndo: z.boolean(), canRedo: z.boolean() }).optional()
   })
   .strict();

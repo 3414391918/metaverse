@@ -58,7 +58,7 @@ export async function runCharacterAppearanceSmoke(
     type: "character.create",
     character: {
       id: identity.characterId,
-      name: order ? "参考角色" : "目标角色",
+      name: order ? "慕天香" : "目标角色",
       group: "protagonist",
       order: order + 1,
       aliases: []
@@ -233,6 +233,11 @@ export async function runCharacterAppearanceSmoke(
         )
     )
       throw new Error("Source appearance was modified");
+    const described = (await window.webContents.executeJavaScript(
+      `import(${JSON.stringify(moduleUrl)}).then(smoke => smoke.runDescribedCharacterAppearanceRendererSmoke())`
+    )) as { appearanceId: string; prompt: string };
+    if (!described.prompt.includes("character.assets.import"))
+      throw new Error("Described appearance prompt has no asset import step");
     const deletion = (await window.webContents.executeJavaScript(
       `import(${JSON.stringify(moduleUrl)}).then(smoke => smoke.runCharacterAppearanceDeletionSmoke())`
     )) as {
@@ -273,6 +278,7 @@ export async function runCharacterAppearanceSmoke(
       cancelled: checked.cancelled,
       referenceIsolated: true,
       persisted: true,
+      described: true,
       ...deletion,
       ...final
     };

@@ -22,3 +22,12 @@ const html = computed(() =>
   <!-- renderMarkdown escapes source text before adding its allowlisted HTML subset. -->
   <div class="markdown-content" v-html="html" />
 </template>
+
+<style scoped>
+.markdown-content :deep(video) {
+  display: block;
+  max-width: 100%;
+  margin: 1rem auto;
+  border-radius: 8px;
+}
+</style>

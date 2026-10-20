@@ -1,5 +1,6 @@
 import { LongCharacterProfileService } from "./long-character-profile-service";
 import { LongChapterImageService } from "./long-chapter-image-service";
+import { LongChapterVideoService } from "./long-chapter-video-service";
 import type {
   LongReadCharacterProfileInput,
   LongSaveCharacterProfileInput,
@@ -144,6 +145,7 @@ export class LongWorkspaceService {
 
   private readonly characterProfiles: LongCharacterProfileService;
   readonly chapterImages: LongChapterImageService;
+  readonly chapterVideos: LongChapterVideoService;
   private readonly now: () => string;
   private readonly onDiagnostic:
     ((diagnostic: LongWorkspaceServiceDiagnostic) => void) | undefined;
@@ -184,6 +186,7 @@ export class LongWorkspaceService {
       }
     );
     this.chapterImages = new LongChapterImageService(this.catalog, this.store);
+    this.chapterVideos = new LongChapterVideoService(this.catalog, this.store);
   }
 
   async readChapterImage(input: LongReadChapterImageInput) {

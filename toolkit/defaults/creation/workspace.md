@@ -24,13 +24,16 @@ node /工作目录/tools/creation/cli.mjs --book /小说目录 --input /请求.j
 | writeChapter | 根据 schema 成组保存章卡对应的正文、章末状态和接续包 |
 | commitChapter | 根据 schema 创建章节连续性记录；支持当前格式中的 structured、text_files 与 text_files_batch 模式 |
 | deleteLedgerCommit | 根据 schema 删除连续性提交并清理关联 |
-| character.read | `{"characterId":"人物ID"}` 读取核心档案、关系、状态和历史以及 revision |
+| character.read | `{"characterId":"人物ID"}` 读取核心档案、各形象文本与 revision；关系及已提交的章节状态、轨迹须根据 `index` 定位文件后用 `read` 获取 |
 | character.create | `{"group":"index 中的分类 ID","name":"人物名称","faceDescription":"脸部身材描述","settingDescription":"角色设定描述","appearances":[{"name":"初始形象","description":"形象文本描述"}]}` 创建人物和核心档案；先查 schema |
+| appearance.catalog | `{"offset":0,"limit":50}` 分页列出当前书籍所有人物的脸部身材和形象文本描述，不返回图片或其它设定；按 `nextOffset` 读到 `null`，用于设计新人物或新形象前检查外观是否同质化 |
 | appearance.add | `{"characterId":"人物ID","name":"新形象","description":"形象文本描述","expectedRevision":"character.read 返回的 revision"}` 新增形象并准备独立目录；不处理形象图片描述 |
+| appearance.prompt | `{"characterId":"人物ID","appearanceId":"形象ID"}` 读取已保存文本描述和本书慕天香的形象资产，返回无需上传参考图的角色资产制作提示词 |
 | character.save | `{"characterId":"人物ID","profile":{},"expectedRevision":"读取的revision"}` 用完整档案保存，先查看 schema |
 | appearance.prepare | 根据 schema 准备独立形象目录 |
 | appearance.delete | 根据 schema 物理删除指定形象及资产，调用前确认用户的删除范围 |
 | character.assets | `{"characterId":"人物ID"}` 列出该角色各形象资产的绝对路径、标签与是否可读取；生成插图时把相关路径作为图片参考传给生图工具 |
+| character.assets.import | `{"characterId":"人物ID","appearanceId":"形象ID","sourcePaths":["/绝对路径/面部特写.png"]}` 安全导入已生成图片，文件名成为标签；返回形象资产记录 |
 | illustration.references | `{"chapterCardId":"章卡ID"}` 列出该章正文已引用插图的绝对路径、附近文字与可用状态；先 `search` 定位此前出现的场景再调用 |
 | illustration.add | `{"chapterCardId":"章卡ID","imagePath":"/本地图片.png","expectedSha256":"read 返回的哈希","offset":123}` 原子保存 PNG 并在正文位置插入相对引用；先查看 schema |
 | illustration.delete | `{"chapterCardId":"章卡ID","filename":"001.png","expectedSha256":"read 返回的哈希","offset":123}` 删除该位置的图片引用；无其它引用时同时删除图片文件。先用 `read` 和 `illustration.references` 定位并核对 |

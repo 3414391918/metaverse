@@ -11,6 +11,13 @@ import {
 import { deleteChapterImage } from "./long-project-store/chapter-image-delete";
 import { addChapterImage } from "./long-project-store/chapter-illustrations";
 import {
+  readChapterVideo,
+  chapterVideoCopySource,
+  addChapterVideo,
+  replaceChapterVideo,
+  deleteChapterVideo
+} from "./long-project-store/chapter-videos";
+import {
   importCharacterAssetsAtPaths,
   renameCharacterAsset,
   deleteCharacterAsset
@@ -26,7 +33,11 @@ import type {
   LongReadChapterImageInput,
   LongReplaceChapterImageInput,
   LongDeleteChapterImageInput,
-  LongAddChapterImageInput
+  LongAddChapterImageInput,
+  LongReadChapterVideoInput,
+  LongAddChapterVideoInput,
+  LongReplaceChapterVideoInput,
+  LongDeleteChapterVideoInput
 } from "@deepwrite/contracts";
 import { resolveLongProjectConflicts } from "./long-project-store/resolve-conflicts";
 import type { LongWorkspaceOperationBatch } from "@deepwrite/contracts";
@@ -234,6 +245,37 @@ export class LongProjectStore {
     input: LongAddChapterImageInput
   ) {
     return await addChapterImage(this.context, projectDirectory, input);
+  }
+
+  async readChapterVideo(
+    projectDirectory: string,
+    input: LongReadChapterVideoInput
+  ) {
+    return readChapterVideo(this.context, projectDirectory, input);
+  }
+  async chapterVideoCopySource(
+    projectDirectory: string,
+    input: LongReadChapterVideoInput
+  ) {
+    return chapterVideoCopySource(this.context, projectDirectory, input);
+  }
+  async addChapterVideo(
+    projectDirectory: string,
+    input: LongAddChapterVideoInput
+  ) {
+    return addChapterVideo(this.context, projectDirectory, input);
+  }
+  async replaceChapterVideo(
+    projectDirectory: string,
+    input: LongReplaceChapterVideoInput
+  ) {
+    return replaceChapterVideo(this.context, projectDirectory, input);
+  }
+  async deleteChapterVideo(
+    projectDirectory: string,
+    input: LongDeleteChapterVideoInput
+  ) {
+    return deleteChapterVideo(this.context, projectDirectory, input);
   }
 
   async replaceChapterImage(

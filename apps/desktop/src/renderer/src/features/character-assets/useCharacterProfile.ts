@@ -140,7 +140,8 @@ export function useCharacterProfile(
       snapshot.value.assets = next.assets;
   }
   async function createAppearance(
-    name: string
+    name: string,
+    description = ""
   ): Promise<CreatedCharacterAppearance | null> {
     if (!snapshot.value || !draft.value || saving.value || loading.value)
       return null;
@@ -162,7 +163,11 @@ export function useCharacterProfile(
     const id = "appearance_" + crypto.randomUUID().replaceAll("-", "");
     const before = cloneProfile(snapshot.value.profile);
     const submitted = cloneProfile(before);
-    submitted.appearances.push({ id, name: trimmed, description: "" });
+    submitted.appearances.push({
+      id,
+      name: trimmed,
+      description: description.trim()
+    });
     const next = await persist(before, submitted);
     if (!next) return null;
     selectedAppearance.value = id;

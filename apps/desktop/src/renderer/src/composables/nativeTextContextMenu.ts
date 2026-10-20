@@ -20,6 +20,7 @@ export interface TextMenuExtension {
 export interface TextMenuIllustration {
   valid(): boolean;
   add(): void;
+  addVideo?(): void;
 }
 interface IllustrationRegistration {
   extension: TextMenuIllustration | undefined;
@@ -118,11 +119,12 @@ export function installNativeTextContextMenu(
     )
       return false;
     const context = state.snapshot.context;
-    if (action === "addIllustration")
+    if (action === "addIllustration" || action === "addVideo")
       return (
         context.kind === "editable" &&
         !context.password &&
-        Boolean(state.illustration?.valid())
+        Boolean(state.illustration?.valid()) &&
+        (action === "addIllustration" || Boolean(state.illustration?.addVideo))
       );
     if (action === "insertReference") return Boolean(state.extension?.insert);
     if (action === "copy" || action === "selectAll") return true;
@@ -177,6 +179,7 @@ export function installNativeTextContextMenu(
           ...snapshot.context,
           canInsertReference: Boolean(active.extension?.insert),
           canAddIllustration: Boolean(active.illustration),
+          canAddVideo: Boolean(active.illustration?.addVideo),
           ...(history
             ? {
                 history: {
@@ -208,6 +211,10 @@ export function installNativeTextContextMenu(
       try {
         if (allowed && action === "addIllustration") {
           illustration?.add();
+          handled = true;
+        }
+        if (allowed && action === "addVideo") {
+          illustration?.addVideo?.();
           handled = true;
         }
         if (allowed && action === "insertReference") {

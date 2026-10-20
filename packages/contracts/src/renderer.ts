@@ -336,3 +336,15 @@ export type {
   LongReadClipboardImageResult,
   LongCopyChapterImageResult
 } from "./long-chapter-image";
+export { LONG_CHAPTER_VIDEO_MAX_BYTES } from "./long-chapter-video";
+export type {
+  LongReadChapterVideoInput,
+  LongReadChapterVideoResult,
+  LongAddChapterVideoInput,
+  LongAddChapterVideoResult,
+  LongReplaceChapterVideoInput,
+  LongReplaceChapterVideoResult,
+  LongDeleteChapterVideoInput,
+  LongDeleteChapterVideoResult,
+  LongCopyChapterVideoResult
+} from "./long-chapter-video";
