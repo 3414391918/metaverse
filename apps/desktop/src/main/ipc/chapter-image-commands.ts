@@ -1,3 +1,4 @@
+import { isAbsolute } from "node:path";
 import { clipboard, nativeImage, type NativeImage } from "electron";
 import {
   CommandEnvelopeSchema,
@@ -10,6 +11,7 @@ import {
   LongReplaceChapterImageResultSchema,
   LongReadClipboardImageResultSchema,
   LongCopyChapterImageResultSchema,
+  LongChapterImageCopySourceSchema,
   type CommandEnvelope,
   type CommandResult
 } from "@deepwrite/contracts";
@@ -33,6 +35,7 @@ export async function handleChapterImageCommands(
     command.type !== "long.replaceChapterImage" &&
     command.type !== "long.deleteChapterImage" &&
     command.type !== "long.copyChapterImage" &&
+    command.type !== "long.copyChapterImagePath" &&
     command.type !== "long.readClipboardImage"
   )
     return undefined;
@@ -86,7 +89,12 @@ export async function handleChapterImageCommands(
         payload = LongReplaceChapterImageResultSchema.parse(result.payload);
       else if (command.type === "long.deleteChapterImage")
         payload = LongDeleteChapterImageResultSchema.parse(result.payload);
-      else {
+      else if (command.type === "long.copyChapterImagePath") {
+        const source = LongChapterImageCopySourceSchema.parse(result.payload);
+        if (!isAbsolute(source.path)) throw new Error("图片文件路径无效。");
+        clipboard.writeText(source.path);
+        payload = LongCopyChapterImageResultSchema.parse({ copied: true });
+      } else {
         const image = LongReadChapterImageResultSchema.parse(result.payload);
         if (command.type === "long.copyChapterImage") {
           const bytes = Buffer.from(

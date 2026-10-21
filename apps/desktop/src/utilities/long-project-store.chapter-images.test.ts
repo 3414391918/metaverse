@@ -71,6 +71,21 @@ async function fixture(extension = "png") {
 }
 
 describe("chapter image storage", () => {
+  it("resolves the referenced image to its verified absolute path", async () => {
+    const setup = await fixture();
+    const source = await setup.projectStore.chapterImageCopySource(
+      setup.created.projectDirectory,
+      setup.input
+    );
+    expect(source.path).toBe(setup.targetPath);
+    await unlink(setup.targetPath);
+    await expect(
+      setup.projectStore.chapterImageCopySource(
+        setup.created.projectDirectory,
+        setup.input
+      )
+    ).rejects.toThrow();
+  });
   it("removes the selected image reference and deletes its file atomically", async () => {
     const setup = await fixture();
     const content = await readFile(setup.bodyPath, "utf8");

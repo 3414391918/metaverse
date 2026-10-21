@@ -72,7 +72,7 @@ export const LongDeleteChapterVideoResultSchema = z
 export const LongCopyChapterVideoResultSchema = z
   .object({ copied: z.literal(true) })
   .strict();
-/** The file path is returned only to the trusted main process for OS file-copy. */
+/** The verified file path is returned only to the trusted main process. */
 export const LongChapterVideoCopySourceSchema = z
   .object({ path: z.string().min(1), revision })
   .strict();
@@ -124,6 +124,10 @@ export const LongChapterVideoCommandSchemas = [
   }),
   EnvelopeBaseSchema.extend({
     type: z.literal("long.copyChapterVideo"),
+    payload: LongReadChapterVideoInputSchema
+  }),
+  EnvelopeBaseSchema.extend({
+    type: z.literal("long.copyChapterVideoPath"),
     payload: LongReadChapterVideoInputSchema
   })
 ] as const;

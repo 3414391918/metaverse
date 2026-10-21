@@ -11,6 +11,7 @@ import fontSource from "./AppearanceFontSettings.vue?raw";
 import appearancePanelSource from "./AppearanceSettingsPanel.vue?raw";
 import themeSource from "./AppearanceThemeSettings.vue?raw";
 import source from "./SettingsPage.vue?raw";
+import directorySource from "./WorkspaceDirectoryFeature.vue?raw";
 
 const generalSettingsSource = `${source}\n${generalPanelSource}`;
 const featureHostSource = `${featureHostCoordinatorSource}\n${featureHostModuleSource}\n${settingsFeatureModuleSource}`;
@@ -20,6 +21,15 @@ describe("SettingsPage", () => {
     expect(source).toContain("initialCategory?: string");
     expect(source).toContain("category.id === props.initialCategory");
     expect(source).toContain(': "general"');
+  });
+
+  it("configures the workspace directory under personal settings", () => {
+    expect(source).toContain('id: "directory", label: "工作目录"');
+    expect(source).toContain("activeCategory === 'directory'");
+    expect(source).toContain(':path="workspaceDirectoryPath"');
+    expect(source).toContain(':loading="workspaceDirectoryLoading"');
+    expect(source).toContain("emit('chooseWorkspaceDirectory')");
+    expect(directorySource).toContain("当前工作目录");
   });
 
   it("offers a persisted auto-save switch in general settings", () => {

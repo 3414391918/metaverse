@@ -7,6 +7,7 @@ import asyncComponentsSource from "./components/lazyAppComponents.ts?raw";
 import featureImportsSource from "./components/lazyFeatureImports.ts?raw";
 const lazyComponentsSource = `${asyncComponentsSource}\n${featureImportsSource}`;
 import featureHostSource from "./composables/useWorkspaceFeatureHostCoordinator.ts?raw";
+import settingsPageSource from "./components/SettingsPage.vue?raw";
 
 describe("App lazy feature mounting", () => {
   it("keeps only the default writing surface in the eager component imports", () => {
@@ -25,10 +26,7 @@ describe("App lazy feature mounting", () => {
     );
     expect(lazyComponentsSource).not.toContain("CloudBackupPage.vue");
     expect(lazyComponentsSource).not.toContain("ModelSettingsFeature.vue");
-    expectSourceToContain(
-      lazyComponentsSource,
-      '() => import("./WorkspaceDirectoryFeature.vue")'
-    );
+    expect(lazyComponentsSource).not.toContain("loadWorkspaceDirectoryFeature");
     expect(source).not.toContain(
       'import SettingsPage from "./components/SettingsPage.vue"'
     );
@@ -37,8 +35,10 @@ describe("App lazy feature mounting", () => {
     );
   });
 
-  it("loads the workspace directory without a model settings feature", () => {
-    expect(featureModulesSource).toContain("<WorkspaceDirectoryFeature\n");
+  it("places the workspace directory in personal settings", () => {
+    expect(settingsPageSource).toContain('id: "directory", label: "工作目录"');
+    expect(settingsPageSource).toContain("<WorkspaceDirectoryFeature");
+    expect(featureModulesSource).not.toContain("<WorkspaceDirectoryFeature");
     expect(featureModulesSource).not.toContain("<ModelSettingsFeature\n");
     expect(source).toContain("<WorkspaceFeatureModules");
     expect(source).not.toContain("<WorkspaceDirectoryFeature");

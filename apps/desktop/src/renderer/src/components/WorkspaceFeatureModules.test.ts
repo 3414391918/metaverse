@@ -12,7 +12,6 @@ describe("WorkspaceFeatureModules boundary", () => {
       "settings",
       "tools",
       "prompt-templates",
-      "directory",
       "voice-manager"
     ]) {
       expect(source).toContain(`module.kind === '${kind}'`);
@@ -21,7 +20,13 @@ describe("WorkspaceFeatureModules boundary", () => {
     expect(source).toContain("<ToolManager");
     expect(source).not.toContain("<AgentTeamCatalogFeature");
     expect(source).not.toContain("RevisionAnalysisPage");
-    expect(source).toContain("<WorkspaceDirectoryFeature");
+    expect(source).not.toContain("<WorkspaceDirectoryFeature");
+    expect(source).toContain(
+      ':workspace-directory-path="module.workspaceDirectoryPath"'
+    );
+    expect(source).toContain(
+      "@choose-workspace-directory=\"emit('chooseWorkspaceDirectory')\""
+    );
     expect(source).not.toContain("<ModelSettingsFeature");
     expect(source).not.toContain("v-show");
     expect(source).not.toContain("KeepAlive");

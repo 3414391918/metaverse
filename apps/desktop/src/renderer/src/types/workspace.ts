@@ -275,8 +275,4 @@ export interface EditorDraftState {
 }
 
 export type DialogMode =
-  | "tools"
-  | "directory"
-  | "revision-analysis"
-  | "voice-manager"
-  | "prompt-templates";
+  "tools" | "revision-analysis" | "voice-manager" | "prompt-templates";

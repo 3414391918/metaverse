@@ -24,9 +24,6 @@ export const LongWorkspaceModule = lazyFeature(
 export const SettingsPage = lazyFeature((features) =>
   features.loadSettingsPage()
 );
-export const WorkspaceDirectoryFeature = lazyFeature((features) =>
-  features.loadWorkspaceDirectoryFeature()
-);
 export const PromptTemplateManager = lazyFeature((features) =>
   features.loadPromptTemplateManager()
 );

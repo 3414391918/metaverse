@@ -18,6 +18,7 @@ import AppearanceSettingsPanel from "./AppearanceSettingsPanel.vue";
 import BodyTextSettingsPanel from "./BodyTextSettingsPanel.vue";
 import GeneralSettingsPanel from "./GeneralSettingsPanel.vue";
 import FishAudioSettingsPanel from "./FishAudioSettingsPanel.vue";
+import WorkspaceDirectoryFeature from "./WorkspaceDirectoryFeature.vue";
 
 interface SettingsCategory {
   id: string;
@@ -32,7 +33,8 @@ interface SettingsCategory {
     | "brain"
     | "settings"
     | "wand"
-    | "archive";
+    | "archive"
+    | "directory";
 }
 
 interface SettingsSection {
@@ -61,6 +63,8 @@ const props = defineProps<{
   libraryAgentLoading: boolean;
   libraryAgentSaving: boolean;
   runtimeAvailable: boolean;
+  workspaceDirectoryPath: string | null;
+  workspaceDirectoryLoading: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -79,6 +83,7 @@ const emit = defineEmits<{
   saveLongAgents: [settings: LongAgentSettingsInput];
   saveLibraryAgents: [settings: LibraryAgentSettingsInput];
   resetLibraryAgent: [domain: LibraryAgentDomain];
+  chooseWorkspaceDirectory: [];
 }>();
 const searchQuery = ref("");
 
@@ -88,6 +93,7 @@ const sections: SettingsSection[] = [
     label: "个人",
     categories: [
       { id: "general", label: "常规", icon: "settings" },
+      { id: "directory", label: "工作目录", icon: "directory" },
       { id: "body-text", label: "正文文本", icon: "wand" },
       { id: "appearance", label: "外观", icon: "sparkles" }
     ]
@@ -200,6 +206,13 @@ function selectCategory(id: string): void {
           @update-workspace-pane-layout="
             emit('updateWorkspacePaneLayout', $event)
           "
+        />
+
+        <WorkspaceDirectoryFeature
+          v-else-if="activeCategory === 'directory'"
+          :path="workspaceDirectoryPath"
+          :loading="workspaceDirectoryLoading"
+          @choose="emit('chooseWorkspaceDirectory')"
         />
 
         <BodyTextSettingsPanel

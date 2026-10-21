@@ -10,6 +10,7 @@ import {
   replaceChapterImage,
   deleteChapterImage,
   copyChapterImage,
+  copyChapterImagePath,
   readClipboardImage
 } from "./chapter-images-api";
 import {
@@ -17,7 +18,8 @@ import {
   addChapterVideo,
   replaceChapterVideo,
   deleteChapterVideo,
-  copyChapterVideo
+  copyChapterVideo,
+  copyChapterVideoPath
 } from "./chapter-videos-api";
 import {
   readCharacterProfile,
@@ -66,12 +68,14 @@ export const long: DeepWriteApi["long"] = {
   replaceChapterImage,
   deleteChapterImage,
   copyChapterImage,
+  copyChapterImagePath,
   readClipboardImage,
   readChapterVideo,
   addChapterVideo,
   replaceChapterVideo,
   deleteChapterVideo,
   copyChapterVideo,
+  copyChapterVideoPath,
   readCharacterProfile,
   saveCharacterProfile,
   importCharacterAssets,

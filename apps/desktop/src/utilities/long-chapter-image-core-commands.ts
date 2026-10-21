@@ -1,5 +1,6 @@
 import {
   LongAddChapterImageResultSchema,
+  LongChapterImageCopySourceSchema,
   LongDeleteChapterImageResultSchema,
   LongReadChapterImageResultSchema,
   LongReplaceChapterImageResultSchema,
@@ -12,6 +13,15 @@ export async function handleLongChapterImageCoreCommand(
   service: LongWorkspaceService,
   command: CommandEnvelope
 ): Promise<CommandResult | undefined> {
+  if (command.type === "long.copyChapterImagePath") {
+    return {
+      status: "accepted",
+      requestId: command.id,
+      payload: LongChapterImageCopySourceSchema.parse(
+        await service.chapterImages.copySource(command.payload)
+      )
+    };
+  }
   if (command.type === "long.addChapterImage") {
     return {
       status: "accepted",

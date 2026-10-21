@@ -45,6 +45,7 @@ describe("LeftSidebar account controls", () => {
     expect(sidebarSource).not.toContain('label: "自定义模型配置"');
     expect(sidebarSource).toContain('id: "tools"');
     expect(sidebarSource).toContain('id: "voice-manager"');
+    expect(sidebarSource).not.toContain('id: "directory"');
     expect(sidebarSource).not.toContain('emit("openAgentTeams")');
     expect(sidebarSource).not.toContain("moreFeatures");
     expect(source).toContain("props.activePrimaryFeature");

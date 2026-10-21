@@ -75,9 +75,8 @@ type PrimaryFeatureId = DialogMode | "agent-teams";
 const navItems: Array<{
   id: PrimaryFeatureId;
   label: string;
-  icon: "directory" | "model" | "wand" | "brain" | "file" | "mic";
+  icon: "wand" | "file" | "mic";
 }> = [
-  { id: "directory", label: "工作目录", icon: "directory" },
   { id: "prompt-templates", label: "提示词模板", icon: "file" },
   { id: "tools", label: "工具管理", icon: "wand" },
   { id: "voice-manager", label: "声音管理", icon: "mic" }

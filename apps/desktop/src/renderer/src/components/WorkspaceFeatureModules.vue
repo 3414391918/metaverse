@@ -16,7 +16,6 @@ import type {
 } from "@deepwrite/contracts";
 import {
   SettingsPage,
-  WorkspaceDirectoryFeature,
   PromptTemplateManager,
   ToolManager
 } from "./lazyAppComponents";
@@ -109,6 +108,8 @@ const emit = defineEmits<{
     :library-agent-loading="module.libraryAgentLoading"
     :library-agent-saving="module.libraryAgentSaving"
     :runtime-available="module.runtimeAvailable"
+    :workspace-directory-path="module.workspaceDirectoryPath"
+    :workspace-directory-loading="module.workspaceDirectoryLoading"
     @back="emit('back')"
     @update-permission-mode="emit('updatePermissionMode', $event)"
     @update-auto-approve-cross-stage-operations="
@@ -126,20 +127,6 @@ const emit = defineEmits<{
     @save-long-agents="emit('saveLongAgents', $event)"
     @save-library-agents="emit('saveLibraryAgents', $event)"
     @reset-library-agent="emit('resetLibraryAgent', $event)"
+    @choose-workspace-directory="emit('chooseWorkspaceDirectory')"
   />
-
-  <WorkspaceFeatureFrame
-    v-else-if="module.kind === 'directory'"
-    class="workspace-settings-main-view"
-    :left-collapsed="leftCollapsed"
-    expand-button-class="workspace-settings-expand-sidebar"
-    label="工作目录"
-    @expand-left="emit('expandLeft')"
-  >
-    <WorkspaceDirectoryFeature
-      :path="module.path"
-      :loading="module.loading"
-      @choose="emit('chooseWorkspaceDirectory')"
-    />
-  </WorkspaceFeatureFrame>
 </template>

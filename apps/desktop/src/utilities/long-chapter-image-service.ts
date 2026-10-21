@@ -24,6 +24,15 @@ export class LongChapterImageService {
     return await this.store.readChapterImage(opened.projectDirectory, parsed);
   }
 
+  async copySource(input: LongReadChapterImageInput) {
+    const parsed = LongReadChapterImageInputSchema.parse(input);
+    const opened = await this.catalog.open(parsed.bookId);
+    return await this.store.chapterImageCopySource(
+      opened.projectDirectory,
+      parsed
+    );
+  }
+
   async addChapterImage(input: LongAddChapterImageInput) {
     const parsed = LongAddChapterImageInputSchema.parse(input);
     const opened = await this.catalog.open(parsed.bookId);

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "id": "video",
+  "name": "视频工具",
+  "description": "理解小说上下文及两张首尾帧图片，推断中间剧情并编写完整的视频生成脚本。",
+  "entryFile": "SKILL.md",
+  "relatedToolIds": ["creation", "illustration"]
+}

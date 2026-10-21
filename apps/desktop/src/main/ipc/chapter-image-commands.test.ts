@@ -4,7 +4,7 @@ import { CommandEnvelopeSchema, createEnvelope } from "@deepwrite/contracts";
 import type { IpcCommandContext } from "./command-types";
 import { handleChapterImageCommands } from "./chapter-image-commands";
 vi.mock("electron", () => ({
-  clipboard: { readImage: vi.fn(), writeImage: vi.fn() },
+  clipboard: { readImage: vi.fn(), writeImage: vi.fn(), writeText: vi.fn() },
   nativeImage: { createFromBuffer: vi.fn() }
 }));
 const target = {
@@ -52,6 +52,44 @@ it("copies only a Core-authorized image into the real system clipboard", async (
     status: "accepted",
     payload: { copied: true }
   });
+});
+it("copies the verified image's absolute path as plain text", async () => {
+  const path = "/books/example/long/chapters/chapter_example/images/001.png";
+  const { ctx, requestCommand } = context({ path, revision: "a".repeat(64) });
+  const result = await handleChapterImageCommands(
+    ctx,
+    CommandEnvelopeSchema.parse(
+      createEnvelope("long.copyChapterImagePath", target, { id: "cmd_image" })
+    )
+  );
+  expect(requestCommand).toHaveBeenCalledWith(
+    "core",
+    expect.objectContaining({
+      type: "long.copyChapterImagePath",
+      payload: target
+    }),
+    60_000
+  );
+  expect(clipboard.writeText).toHaveBeenCalledWith(path);
+  expect(clipboard.writeImage).not.toHaveBeenCalled();
+  expect(result).toMatchObject({
+    status: "accepted",
+    payload: { copied: true }
+  });
+});
+it("rejects a nonabsolute image path without changing the clipboard", async () => {
+  const { ctx } = context({
+    path: "images/001.png",
+    revision: "a".repeat(64)
+  });
+  const result = await handleChapterImageCommands(
+    ctx,
+    CommandEnvelopeSchema.parse(
+      createEnvelope("long.copyChapterImagePath", target, { id: "cmd_image" })
+    )
+  );
+  expect(result?.status).toBe("rejected");
+  expect(clipboard.writeText).not.toHaveBeenCalled();
 });
 it("returns null for an empty clipboard without invoking Core or writing files", async () => {
   const { ctx, requestCommand } = context(null);

@@ -47,6 +47,7 @@ export async function handleLongChapterVideoCoreCommand(
         )
       };
     case "long.copyChapterVideo":
+    case "long.copyChapterVideoPath":
       return {
         status: "accepted",
         requestId: command.id,

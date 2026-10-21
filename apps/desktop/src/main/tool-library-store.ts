@@ -92,7 +92,8 @@ export class ToolLibraryStore {
       }
       await writeToolText(marker, JSON.stringify({ version: 1 }) + "\n");
     }
-    await this.installAddedVoiceDesign(root);
+    await this.installAddedDefault(root, "voice-design");
+    await this.installAddedDefault(root, "video");
     await this.mergeCreationTools(root);
     return root;
   }
@@ -252,22 +253,22 @@ export class ToolLibraryStore {
     await writeToolText(marker, JSON.stringify({ version: 1 }) + "\n");
   }
 
-  private async installAddedVoiceDesign(root: string): Promise<void> {
-    const marker = join(root, ".voice-design-installed-v1.json");
+  private async installAddedDefault(root: string, id: string): Promise<void> {
+    const marker = join(root, `.${id}-installed-v1.json`);
     try {
       await lstat(marker);
       return;
     } catch (error) {
       if (!missing(error)) throw error;
     }
-    const source = join(this.defaultsDirectory, "voice-design");
+    const source = join(this.defaultsDirectory, id);
     try {
       if (!(await lstat(source)).isDirectory()) return;
     } catch (error) {
       if (missing(error)) return;
       throw error;
     }
-    const target = join(root, "voice-design");
+    const target = join(root, id);
     try {
       await lstat(target);
     } catch (error) {

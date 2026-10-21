@@ -93,7 +93,7 @@ function onContextMenu(event: MouseEvent) {
     target: { ...props.context, filename: match[3]! },
     offset,
     x: Math.max(8, Math.min(event.clientX, window.innerWidth - 180)),
-    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 145))
+    y: Math.max(8, Math.min(event.clientY, window.innerHeight - 190))
   };
 }
 async function copy() {
@@ -105,6 +105,19 @@ async function copy() {
     uiMessage.success("视频文件已复制");
   } catch (error) {
     uiMessage.error(error instanceof Error ? error.message : "复制视频失败。");
+  }
+}
+async function copyPath() {
+  const selected = menu.value;
+  menu.value = null;
+  if (!selected) return;
+  try {
+    await api().copyChapterVideoPath(chapterVideoIpcTarget(selected.target));
+    uiMessage.success("视频绝对路径已复制");
+  } catch (error) {
+    uiMessage.error(
+      error instanceof Error ? error.message : "复制视频路径失败。"
+    );
   }
 }
 async function beginReplacement() {
@@ -217,6 +230,9 @@ async function confirmDeletion() {
           :style="{ left: `${menu.x}px`, top: `${menu.y}px` }"
         >
           <button type="button" role="menuitem" @click="copy">复制视频</button>
+          <button type="button" role="menuitem" @click="copyPath">
+            复制视频绝对路径
+          </button>
           <button type="button" role="menuitem" @click="beginReplacement">
             替换视频
           </button>

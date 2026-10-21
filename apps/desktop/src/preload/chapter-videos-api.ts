@@ -65,3 +65,11 @@ export async function copyChapterVideo(input: LongReadChapterVideoInput) {
     )
   );
 }
+export async function copyChapterVideoPath(input: LongReadChapterVideoInput) {
+  return LongCopyChapterVideoResultSchema.parse(
+    await invoke(
+      "long.copyChapterVideoPath",
+      LongReadChapterVideoInputSchema.parse(input)
+    )
+  );
+}

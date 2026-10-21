@@ -29,17 +29,12 @@ export interface SettingsFeatureModule {
   libraryAgentLoading: boolean;
   libraryAgentSaving: boolean;
   runtimeAvailable: boolean;
-}
-
-export interface DirectoryFeatureModule {
-  kind: "directory";
-  path: string | null;
-  loading: boolean;
+  workspaceDirectoryPath: string | null;
+  workspaceDirectoryLoading: boolean;
 }
 
 export type WorkspaceFeatureModule =
   | { kind: "tools" }
   | { kind: "voice-manager" }
   | { kind: "prompt-templates" }
-  | SettingsFeatureModule
-  | DirectoryFeatureModule;
+  | SettingsFeatureModule;

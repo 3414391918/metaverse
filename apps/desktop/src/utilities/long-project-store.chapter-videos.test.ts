@@ -65,6 +65,11 @@ describe("chapter videos", () => {
       setup.created.projectDirectory,
       target
     );
+    const source = await setup.projectStore.chapterVideoCopySource(
+      setup.created.projectDirectory,
+      target
+    );
+    expect(source.path).toBe(join(setup.videos, added.filename));
     const replaced = await setup.projectStore.replaceChapterVideo(
       setup.created.projectDirectory,
       {

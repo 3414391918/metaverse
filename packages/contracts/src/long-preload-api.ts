@@ -94,6 +94,9 @@ export interface LongPreloadApi {
   copyChapterImage(
     input: LongReadChapterImageInput
   ): Promise<LongCopyChapterImageResult>;
+  copyChapterImagePath(
+    input: LongReadChapterImageInput
+  ): Promise<LongCopyChapterImageResult>;
   readClipboardImage(): Promise<LongReadClipboardImageResult>;
   readChapterVideo(
     input: LongReadChapterVideoInput
@@ -108,6 +111,9 @@ export interface LongPreloadApi {
     input: LongDeleteChapterVideoInput
   ): Promise<LongDeleteChapterVideoResult>;
   copyChapterVideo(
+    input: LongReadChapterVideoInput
+  ): Promise<LongCopyChapterVideoResult>;
+  copyChapterVideoPath(
     input: LongReadChapterVideoInput
   ): Promise<LongCopyChapterVideoResult>;
   readCharacterProfile(

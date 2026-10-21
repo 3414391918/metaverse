@@ -14,6 +14,7 @@ export type ChapterImageApi = Pick<
   | "replaceChapterImage"
   | "deleteChapterImage"
   | "copyChapterImage"
+  | "copyChapterImagePath"
   | "readClipboardImage"
 >;
 interface Replacement {
@@ -86,6 +87,11 @@ export function useChapterImageActions(
     const target = menu.value ? { ...menu.value.target } : undefined;
     menu.value = null;
     if (target) await api().copyChapterImage(target);
+  }
+  async function copyPath() {
+    const target = menu.value ? { ...menu.value.target } : undefined;
+    menu.value = null;
+    if (target) await api().copyChapterImagePath(target);
   }
   async function beginReplacement() {
     const target = menu.value ? { ...menu.value.target } : undefined;
@@ -208,6 +214,7 @@ export function useChapterImageActions(
     loading,
     openMenu,
     copy,
+    copyPath,
     beginReplacement,
     beginDeletion,
     closeDeletion,

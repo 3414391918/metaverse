@@ -66,7 +66,7 @@ function onContextMenu(event: MouseEvent) {
   state.openMenu(
     target,
     Math.max(8, Math.min(event.clientX, window.innerWidth - 180)),
-    Math.max(8, Math.min(event.clientY, window.innerHeight - 145)),
+    Math.max(8, Math.min(event.clientY, window.innerHeight - 190)),
     offset
   );
 }
@@ -113,6 +113,13 @@ async function perform(action: () => Promise<unknown>, success?: string) {
             @click="perform(state.copy, '图片已复制')"
           >
             复制图片
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            @click="perform(state.copyPath, '图片绝对路径已复制')"
+          >
+            复制图片绝对路径
           </button>
           <button
             type="button"

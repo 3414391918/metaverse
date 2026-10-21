@@ -51,6 +51,10 @@ function setup(
       structuredClone(input);
       return { copied: true as const };
     }),
+    copyChapterImagePath: vi.fn(async (input: LongReadChapterImageInput) => {
+      structuredClone(input);
+      return { copied: true as const };
+    }),
     readClipboardImage: vi.fn(async () => ({ pngDataUrl: png }))
   };
   const scope = effectScope();
@@ -69,6 +73,13 @@ it("copies the selected image through the context bridge without sending a Vue p
   expect(() => structuredClone(state.menu.value?.target)).toThrow();
   await expect(state.copy()).resolves.toBeUndefined();
   expect(api.copyChapterImage).toHaveBeenCalledWith(target);
+  expect(state.menu.value).toBeNull();
+});
+it("copies the selected image path without passing a Vue proxy", async () => {
+  const { state, api } = setup();
+  state.openMenu(target, 10, 20);
+  await expect(state.copyPath()).resolves.toBeUndefined();
+  expect(api.copyChapterImagePath).toHaveBeenCalledWith(target);
   expect(state.menu.value).toBeNull();
 });
 it("deletes only the selected image occurrence using the saved document snapshot", async () => {

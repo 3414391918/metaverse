@@ -76,6 +76,10 @@ export const LongReadClipboardImageResultSchema = z
 export const LongCopyChapterImageResultSchema = z
   .object({ copied: z.literal(true) })
   .strict();
+/** The verified file path is returned only to the trusted main process. */
+export const LongChapterImageCopySourceSchema = z
+  .object({ path: z.string().min(1), revision })
+  .strict();
 export const LongAddChapterImageInputSchema = z
   .object({
     bookId: LongBookIdSchema,
@@ -143,6 +147,10 @@ export const LongChapterImageCommandSchemas = [
   }),
   EnvelopeBaseSchema.extend({
     type: z.literal("long.copyChapterImage"),
+    payload: LongReadChapterImageInputSchema
+  }),
+  EnvelopeBaseSchema.extend({
+    type: z.literal("long.copyChapterImagePath"),
     payload: LongReadChapterImageInputSchema
   }),
   EnvelopeBaseSchema.extend({

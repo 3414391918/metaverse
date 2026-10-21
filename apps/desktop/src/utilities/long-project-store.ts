@@ -6,6 +6,7 @@ import { deleteCharacterAppearance } from "./long-project-store/character-appear
 import { prepareCharacterAppearanceDirectory } from "./long-project-store/character-appearance-directory";
 import {
   readChapterImage,
+  chapterImageCopySource,
   replaceChapterImage
 } from "./long-project-store/chapter-images";
 import { deleteChapterImage } from "./long-project-store/chapter-image-delete";
@@ -238,6 +239,13 @@ export class LongProjectStore {
     input: LongReadChapterImageInput
   ) {
     return await readChapterImage(this.context, projectDirectory, input);
+  }
+
+  async chapterImageCopySource(
+    projectDirectory: string,
+    input: LongReadChapterImageInput
+  ) {
+    return await chapterImageCopySource(this.context, projectDirectory, input);
   }
 
   async addChapterImage(

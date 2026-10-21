@@ -99,9 +99,6 @@ export function useWorkspaceFeatureHostCoordinator(
     if (!(await canApplyNavigation(generation))) return;
     if (mode === "revision-analysis") mode = "tools";
     options.view.workspaceMain.value = mode;
-    if (mode === "directory" && options.api()) {
-      issueBackground(loadWorkspaceDirectory);
-    }
   }
 
   async function openSettings(initialCategory = "general"): Promise<void> {
@@ -123,6 +120,9 @@ export function useWorkspaceFeatureHostCoordinator(
     }
     options.view.settingsInitialCategory.value = initialCategory;
     options.view.current.value = "settings";
+    if (options.api()) {
+      issueBackground(loadWorkspaceDirectory);
+    }
   }
 
   async function openAgentTeams(): Promise<void> {

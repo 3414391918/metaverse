@@ -11,7 +11,6 @@ export function buildWorkspaceFeatureModule(
   _agentTeamNavigationEpoch: number,
   buildSettingsModule?: typeof buildSettingsFeatureModule
 ): WorkspaceFeatureModule | null {
-  const { settingsStore } = options;
   switch (feature) {
     case "settings":
       return buildSettingsModule?.(options) ?? null;
@@ -19,12 +18,6 @@ export function buildWorkspaceFeatureModule(
     case "revision-analysis":
     case "tools":
       return { kind: "tools" };
-    case "directory":
-      return {
-        kind: "directory",
-        path: settingsStore.workspaceDirectoryPath,
-        loading: settingsStore.workspaceDirectoryLoading
-      };
     case "voice-manager":
       return { kind: "voice-manager" };
     case "prompt-templates":

@@ -64,6 +64,7 @@ export async function loadChapterImage(
     chapter,
     body,
     relativePath,
+    target,
     bytes,
     revision: projectTransactionContentSha256(bytes),
     extension: extname(input.filename).slice(1).toLowerCase()

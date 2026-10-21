@@ -65,6 +65,14 @@ export async function copyChapterImage(input: LongReadChapterImageInput) {
     )
   );
 }
+export async function copyChapterImagePath(input: LongReadChapterImageInput) {
+  return LongCopyChapterImageResultSchema.parse(
+    await invoke(
+      "long.copyChapterImagePath",
+      LongReadChapterImageInputSchema.parse(input)
+    )
+  );
+}
 export async function readClipboardImage() {
   return LongReadClipboardImageResultSchema.parse(
     await invoke("long.readClipboardImage", {})

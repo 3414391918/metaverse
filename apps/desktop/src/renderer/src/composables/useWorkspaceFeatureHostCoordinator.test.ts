@@ -136,7 +136,6 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
     const harness = createHarness();
     expect(harness.coordinator.workspaceFeatureModule.value).toBeNull();
     for (const feature of [
-      "directory",
       "tools",
       "voice-manager",
       "prompt-templates"
@@ -188,7 +187,7 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
       saveBeforeLeaving: async () => false
     });
 
-    await harness.coordinator.openWorkspaceDialog("directory");
+    await harness.coordinator.openSettings("directory");
     await harness.coordinator.openWorkspaceDialog("voice-manager");
     await harness.coordinator.openWorkspaceDialog("revision-analysis");
     await harness.coordinator.openSettings();
@@ -216,10 +215,10 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
         ++calls === 1 ? saving.promise : Promise.resolve(true)
     });
     const opening = harness.coordinator.openWorkspaceDialog("tools");
-    await harness.coordinator.openWorkspaceDialog("directory");
+    await harness.coordinator.openWorkspaceDialog("voice-manager");
     saving.resolve(true);
     await opening;
-    expect(harness.workspaceMainView.value).toBe("directory");
+    expect(harness.workspaceMainView.value).toBe("voice-manager");
   });
 
   it("does not let a delayed save replace a resource navigation", async () => {
@@ -247,7 +246,7 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
       "conversation",
       "long-workspace",
       "tools",
-      "directory"
+      "settings"
     ] as const)
       await harness.coordinator.ensureActiveFeatureDependencies(feature);
     expect(harness.loaders.loadLibraryAgentSettings).not.toHaveBeenCalled();
@@ -262,6 +261,13 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
 
     await harness.coordinator.openSettings("general");
     expect(harness.currentView.value).toBe("settings");
+    await vi.waitFor(() =>
+      expect(harness.settingsStore.workspaceDirectoryPath).toBe("/workspace-a")
+    );
+    const settings = harness.coordinator.workspaceFeatureModule.value;
+    expect(
+      settings?.kind === "settings" && settings.workspaceDirectoryPath
+    ).toBe("/workspace-a");
     expect(
       harness.loaders.ensureLongAgentSettingsLoaded
     ).not.toHaveBeenCalled();
@@ -303,12 +309,12 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
     await vi.waitFor(() => expect(loading).toHaveBeenCalledOnce());
     expect(harness.currentView.value).toBe("workspace");
 
-    await harness.coordinator.openWorkspaceDialog("directory");
+    await harness.coordinator.openWorkspaceDialog("voice-manager");
     pending.resolve(buildSettingsFeatureModule);
     await opening;
 
     expect(harness.currentView.value).toBe("workspace");
-    expect(harness.workspaceMainView.value).toBe("directory");
+    expect(harness.workspaceMainView.value).toBe("voice-manager");
   });
 
   it("contains rejecting background loaders without changing the selected page", async () => {

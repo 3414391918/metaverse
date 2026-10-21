@@ -48,7 +48,8 @@ export async function handleChapterVideoCommands(
     command.type !== "long.readChapterVideo" &&
     command.type !== "long.replaceChapterVideo" &&
     command.type !== "long.deleteChapterVideo" &&
-    command.type !== "long.copyChapterVideo"
+    command.type !== "long.copyChapterVideo" &&
+    command.type !== "long.copyChapterVideoPath"
   )
     return undefined;
   try {
@@ -88,6 +89,13 @@ export async function handleChapterVideoCommands(
       case "long.copyChapterVideo": {
         const source = LongChapterVideoCopySourceSchema.parse(result.payload);
         copyChapterVideoFile(source.path);
+        payload = LongCopyChapterVideoResultSchema.parse({ copied: true });
+        break;
+      }
+      case "long.copyChapterVideoPath": {
+        const source = LongChapterVideoCopySourceSchema.parse(result.payload);
+        if (!isAbsolute(source.path)) throw new Error("视频文件路径无效。");
+        clipboard.writeText(source.path);
         payload = LongCopyChapterVideoResultSchema.parse({ copied: true });
         break;
       }

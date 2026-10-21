@@ -37,6 +37,19 @@ export async function readChapterImage(
   });
 }
 
+export async function chapterImageCopySource(
+  ctx: LongProjectStoreContext,
+  directory: string,
+  input: LongReadChapterImageInput
+) {
+  const parsed = LongReadChapterImageInputSchema.parse(input);
+  const canonical = await secureDirectory(directory, "长篇项目目录");
+  return ctx.runExclusive(canonical, async () => {
+    const state = await loadChapterImage(ctx, canonical, parsed);
+    return { path: state.target, revision: state.revision };
+  });
+}
+
 export async function replaceChapterImage(
   ctx: LongProjectStoreContext,
   directory: string,

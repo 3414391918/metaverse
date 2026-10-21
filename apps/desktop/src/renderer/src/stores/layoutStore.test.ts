@@ -106,10 +106,10 @@ describe("layout store", () => {
     expect(refs.leftPaneWidth.value).toBe(defaultLeftPaneWidth(1400));
     expect(refs.rightPaneWidth.value).toBe(defaultRightPaneWidth(1400));
 
-    store.showWorkspaceFeature("directory");
+    store.showWorkspaceFeature("voice-manager");
     expect(refs.currentView.value).toBe("workspace");
-    expect(refs.workspaceMainView.value).toBe("directory");
-    expect(refs.activePrimaryFeature.value).toBe("directory");
+    expect(refs.workspaceMainView.value).toBe("voice-manager");
+    expect(refs.activePrimaryFeature.value).toBe("voice-manager");
 
     store.showSettings("appearance");
     expect(refs.currentView.value).toBe("settings");

@@ -170,6 +170,33 @@ describe("editable tool library", () => {
       "voice-design"
     );
   });
+  it("adds the video tool once to an existing work directory and respects user edits and deletion", async () => {
+    const { store, directory, defaults } = await setup();
+    await store.list();
+    await mkdir(join(defaults, "video"));
+    await writeFile(
+      join(defaults, "video/tool.json"),
+      JSON.stringify({
+        version: 1,
+        id: "video",
+        name: "视频工具",
+        description: "视频脚本",
+        entryFile: "SKILL.md",
+        relatedToolIds: []
+      })
+    );
+    await writeFile(join(defaults, "video/SKILL.md"), "原始说明");
+    expect((await store.list()).tools.map(({ id }) => id)).toContain("video");
+    await writeFile(join(directory, "video/SKILL.md"), "用户改过的说明");
+    await store.list();
+    expect(await readFile(join(directory, "video/SKILL.md"), "utf8")).toBe(
+      "用户改过的说明"
+    );
+    await store.delete("video");
+    expect((await store.list()).tools.map(({ id }) => id)).not.toContain(
+      "video"
+    );
+  });
   it("installs defaults once in the work directory and edits the installed files", async () => {
     const { store, directory } = await setup();
     expect((await store.list()).tools).toHaveLength(2);

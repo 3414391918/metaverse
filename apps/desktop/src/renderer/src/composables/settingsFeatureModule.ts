@@ -26,6 +26,8 @@ export function buildSettingsFeatureModule(
     libraryAgentSettings: settingsStore.libraryAgentSettings,
     libraryAgentLoading: settingsStore.libraryAgentLoading,
     libraryAgentSaving: settingsStore.libraryAgentSaving,
-    runtimeAvailable: Boolean(options.api())
+    runtimeAvailable: Boolean(options.api()),
+    workspaceDirectoryPath: settingsStore.workspaceDirectoryPath,
+    workspaceDirectoryLoading: settingsStore.workspaceDirectoryLoading
   };
 }

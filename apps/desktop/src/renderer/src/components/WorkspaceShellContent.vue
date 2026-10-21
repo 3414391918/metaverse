@@ -39,6 +39,7 @@ function bindDesktopShell(element: Element | ComponentPublicInstance | null) {
     @save-long-agents="shell.saveLongAgentSettings"
     @save-library-agents="shell.saveLibraryAgentSettings"
     @reset-library-agent="shell.resetLibraryAgentSettings"
+    @choose-workspace-directory="shell.featureHost.chooseWorkspaceDirectory"
   />
   <div
     v-else
@@ -89,7 +90,6 @@ function bindDesktopShell(element: Element | ComponentPublicInstance | null) {
       @install-agent-team="shell.installAgentTeam"
       @set-agent-team-enabled="shell.setAgentTeamEnabled"
       @save-agent-team="shell.saveAgentTeamSettings"
-      @choose-workspace-directory="shell.featureHost.chooseWorkspaceDirectory"
       @refresh-catalog="shell.loadCatalogSnapshot"
     />
 
