@@ -57,6 +57,34 @@ export async function handleSettingsCommands(
       };
     }
   }
+  if (
+    command.type === "workspaceDirectory.restore" ||
+    command.type === "workspaceDirectory.migrate"
+  ) {
+    try {
+      const store = ctx.requireWorkspaceDirectoryStore();
+      return {
+        status: "accepted",
+        requestId: command.id,
+        payload: WorkspaceDirectorySettingsSchema.parse(
+          command.type === "workspaceDirectory.restore"
+            ? await store.restore()
+            : await store.migrate()
+        )
+      };
+    } catch (error: unknown) {
+      return {
+        status: "rejected",
+        requestId: command.id,
+        error: {
+          code: `workspace_directory.${command.type === "workspaceDirectory.restore" ? "restore" : "migrate"}_failed`,
+          message:
+            error instanceof Error ? error.message : "工作目录操作失败。",
+          details: safeErrorDetails(error)
+        }
+      };
+    }
+  }
   const appearanceResult = await handleAppearanceCommands(ctx, command);
   if (appearanceResult) {
     return appearanceResult;

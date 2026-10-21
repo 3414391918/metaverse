@@ -40,7 +40,7 @@ export class ToolLibraryStore {
   }
 
   private async root(): Promise<string> {
-    const { path } = await this.workspace.list();
+    const { path, previousPath } = await this.workspace.list();
     if (!path) throw new Error("请先选择工作目录。");
     const info = await lstat(path);
     if (!info.isDirectory() || info.isSymbolicLink())
@@ -52,13 +52,26 @@ export class ToolLibraryStore {
       throw new Error("工具目录不能是符号链接。");
     const marker = join(root, ".initialized-v1.json");
     let initialized = true;
+    let skipDefaults = false;
     try {
-      await lstat(marker);
+      const markerInfo = await lstat(marker);
+      if (!markerInfo.isFile() || markerInfo.isSymbolicLink())
+        throw new Error("工具目录初始化标记无效。");
+      skipDefaults =
+        (JSON.parse(await readToolText(marker)) as { defaults?: unknown })
+          .defaults === false;
     } catch (error) {
       if (!missing(error)) throw error;
       initialized = false;
     }
     if (!initialized) {
+      if (previousPath) {
+        await writeToolText(
+          marker,
+          JSON.stringify({ version: 1, defaults: false }) + "\n"
+        );
+        return root;
+      }
       const defaults = await readdir(this.defaultsDirectory, {
         withFileTypes: true
       });
@@ -92,6 +105,7 @@ export class ToolLibraryStore {
       }
       await writeToolText(marker, JSON.stringify({ version: 1 }) + "\n");
     }
+    if (skipDefaults) return root;
     await this.installAddedDefault(root, "voice-design");
     await this.installAddedDefault(root, "video");
     await this.mergeCreationTools(root);

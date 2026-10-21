@@ -64,7 +64,6 @@ import { search } from "../../apps/desktop/src/utilities/long-project-store/sear
 import { addChapterImageBytes } from "../../apps/desktop/src/utilities/long-project-store/chapter-illustration-transaction";
 import { deleteChapterImage } from "../../apps/desktop/src/utilities/long-project-store/chapter-image-delete";
 import type { StoreCommitLongChapterInput } from "../../apps/desktop/src/utilities/long-project-store/types";
-import { markForDesktopDiscovery } from "./discovery";
 import { readIllustrationSource } from "./illustration-source";
 import {
   listChapterIllustrations,
@@ -111,7 +110,6 @@ export async function runWorkspaceAction(
         other: skills?.other ?? []
       }
     });
-    await markForDesktopDiscovery(created.projectDirectory);
     return created;
   }
   const directory = absoluteDirectory(bookPath);
@@ -362,7 +360,8 @@ export async function runWorkspaceAction(
       return { appearanceId, ...prepared };
     }
     case "appearance.catalog": {
-      const { offset, limit } = ToolkitAppearanceCatalogInputSchema.parse(input);
+      const { offset, limit } =
+        ToolkitAppearanceCatalogInputSchema.parse(input);
       const all = opened.book.workspaceIndex.characters;
       const selected = all.slice(offset, offset + limit);
       const characters = await Promise.all(

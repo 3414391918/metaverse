@@ -255,8 +255,10 @@ try {
     book
   );
   assert.ok(
-    call("creation", { action: "schema", input: { name: "appearance.catalog" } })
-      .schema.properties.limit
+    call("creation", {
+      action: "schema",
+      input: { name: "appearance.catalog" }
+    }).schema.properties.limit
   );
   const firstAppearancePage = call(
     "creation",
@@ -283,17 +285,19 @@ try {
   assert.ok(
     [firstAppearancePage, secondAppearancePage]
       .flatMap(({ characters }) => characters)
-      .some(({ faceDescription, appearances }) =>
-        faceDescription === "黑发，身形修长" &&
-        appearances.some(({ description }) => description === "白色礼服")
+      .some(
+        ({ faceDescription, appearances }) =>
+          faceDescription === "黑发，身形修长" &&
+          appearances.some(({ description }) => description === "白色礼服")
       )
   );
   assert.ok(
     [firstAppearancePage, secondAppearancePage]
       .flatMap(({ characters }) => characters)
-      .every((character) =>
-        !Object.hasOwn(character, "settingDescription") &&
-        !Object.hasOwn(character, "assets")
+      .every(
+        (character) =>
+          !Object.hasOwn(character, "settingDescription") &&
+          !Object.hasOwn(character, "assets")
       )
   );
   const templateImage = join(root, "面部特写.png");
@@ -372,11 +376,6 @@ try {
     call("creation", { action: "index" }, book).workspaceIndex.featureSettings
       .worldbuildingItemLayout,
     "left-tree"
-  );
-  assert.ok(
-    JSON.parse(
-      await readFile(join(book, ".virtual-world-created.json"), "utf8")
-    ).version
   );
   const library = call("context", {
     action: "createLibrary",
@@ -461,7 +460,7 @@ try {
   assert.equal(requests[1].init.body.get("visibility"), "private");
   assert.ok(requests[1].init.body.get("voices"));
   console.log(
-    "Standalone toolkit smoke passed: copied files, schema, novel create/read/write/structure/illustrations, library create/read, shared context, voice design, and discovery markers; no Electron or node_modules."
+    "Standalone toolkit smoke passed: copied files, schema, novel create/read/write/structure/illustrations, library create/read, shared context, and voice design; no Electron or node_modules."
   );
 } finally {
   await rm(root, { recursive: true, force: true });

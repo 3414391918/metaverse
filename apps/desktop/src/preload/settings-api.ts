@@ -121,6 +121,32 @@ export async function chooseWorkspaceDirectory(): Promise<WorkspaceDirectorySett
   );
 }
 
+export async function restoreWorkspaceDirectory(): Promise<WorkspaceDirectorySettings> {
+  const id = browserId("cmd_workspace_directory_restore");
+  return WorkspaceDirectorySettingsSchema.parse(
+    await invokeCommand<WorkspaceDirectorySettings>(
+      createEnvelope(
+        "workspaceDirectory.restore",
+        {},
+        { id, correlationId: id }
+      )
+    )
+  );
+}
+
+export async function migrateWorkspaceDirectory(): Promise<WorkspaceDirectorySettings> {
+  const id = browserId("cmd_workspace_directory_migrate");
+  return WorkspaceDirectorySettingsSchema.parse(
+    await invokeCommand<WorkspaceDirectorySettings>(
+      createEnvelope(
+        "workspaceDirectory.migrate",
+        {},
+        { id, correlationId: id }
+      )
+    )
+  );
+}
+
 export async function listGeneralSettings(): Promise<GeneralSettingsSnapshot> {
   const id = browserId("cmd_general_settings_list");
   return GeneralSettingsSnapshotSchema.parse(

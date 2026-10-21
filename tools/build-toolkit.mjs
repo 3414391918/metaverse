@@ -17,7 +17,10 @@ for (const [name, source] of [
     logLevel: "warn",
     resolve: {
       alias: {
-        "@deepwrite/contracts": resolve(root, "packages/contracts/src/index.ts"),
+        "@deepwrite/contracts": resolve(
+          root,
+          "packages/contracts/src/index.ts"
+        ),
         "@deepwrite/shared": resolve(root, "packages/shared/src/index.ts")
       }
     },

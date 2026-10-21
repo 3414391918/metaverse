@@ -13,7 +13,6 @@ import {
 } from "@deepwrite/contracts";
 import { FolderCatalogStore } from "../../apps/desktop/src/utilities/folder-catalog-store";
 import { runWorkspaceAction } from "./workspace-engine";
-import { markForDesktopDiscovery } from "./discovery";
 
 function absolute(raw: unknown): string {
   const path = ToolkitDirectorySchema.parse(raw);
@@ -114,7 +113,6 @@ export async function runContextAction(
     );
     await mkdir(parentDirectory, { recursive: true });
     const created = await store.createLibrary({ ...parsed, parentDirectory });
-    await markForDesktopDiscovery(created.projectDirectory);
     return created;
   }
   const { libraryDirectory, ...fields } = input;

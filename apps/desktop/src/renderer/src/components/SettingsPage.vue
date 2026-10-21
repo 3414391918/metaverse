@@ -65,6 +65,8 @@ const props = defineProps<{
   runtimeAvailable: boolean;
   workspaceDirectoryPath: string | null;
   workspaceDirectoryLoading: boolean;
+  workspaceDirectoryPreviousPath: string | null;
+  workspaceDirectoryMigrationSourcePath: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -84,6 +86,8 @@ const emit = defineEmits<{
   saveLibraryAgents: [settings: LibraryAgentSettingsInput];
   resetLibraryAgent: [domain: LibraryAgentDomain];
   chooseWorkspaceDirectory: [];
+  restoreWorkspaceDirectory: [];
+  migrateWorkspaceDirectory: [];
 }>();
 const searchQuery = ref("");
 
@@ -212,7 +216,11 @@ function selectCategory(id: string): void {
           v-else-if="activeCategory === 'directory'"
           :path="workspaceDirectoryPath"
           :loading="workspaceDirectoryLoading"
+          :previous-path="workspaceDirectoryPreviousPath"
+          :migration-source-path="workspaceDirectoryMigrationSourcePath"
           @choose="emit('chooseWorkspaceDirectory')"
+          @restore="emit('restoreWorkspaceDirectory')"
+          @migrate="emit('migrateWorkspaceDirectory')"
         />
 
         <BodyTextSettingsPanel

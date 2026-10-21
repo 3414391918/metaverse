@@ -148,7 +148,9 @@ export function useWorkspaceFeatureHostCoordinator(
     }
   }
 
-  async function chooseWorkspaceDirectory(): Promise<void> {
+  async function runWorkspaceDirectoryAction(
+    action: "choose" | "restore" | "migrate"
+  ): Promise<void> {
     const api = options.api();
     if (
       !active ||
@@ -162,15 +164,28 @@ export function useWorkspaceFeatureHostCoordinator(
     directoryChoosePending = true;
     settingsStore.workspaceDirectoryLoading = true;
     try {
-      const settings = await api.workspaceDirectory.choose();
+      const originalPath = settingsStore.workspaceDirectoryPath;
+      const settings = await api.workspaceDirectory[action]();
       if (!active || generation !== directoryChooseGeneration || !settings) {
         return;
       }
       settingsStore.markLoaded("workspaceDirectory", settings);
-      options.notifications.success("工作目录已切换；现有项目保持原位置不变");
+      options.notifications.success(
+        action === "migrate"
+          ? "数据迁移完成，来源目录仍保留原文件"
+          : action === "restore"
+            ? "已恢复上一个工作目录"
+            : "工作目录已切换"
+      );
+      if (
+        typeof window !== "undefined" &&
+        (action === "migrate" || settings.path !== originalPath)
+      ) {
+        window.location.reload();
+      }
     } catch (error: unknown) {
       if (active && generation === directoryChooseGeneration) {
-        options.notifications.error(errorMessage(error, "切换工作目录失败。"));
+        options.notifications.error(errorMessage(error, "工作目录操作失败。"));
       }
     } finally {
       if (generation === directoryChooseGeneration) {
@@ -178,6 +193,18 @@ export function useWorkspaceFeatureHostCoordinator(
         settingsStore.workspaceDirectoryLoading = false;
       }
     }
+  }
+
+  function chooseWorkspaceDirectory(): Promise<void> {
+    return runWorkspaceDirectoryAction("choose");
+  }
+
+  function restoreWorkspaceDirectory(): Promise<void> {
+    return runWorkspaceDirectoryAction("restore");
+  }
+
+  function migrateWorkspaceDirectory(): Promise<void> {
+    return runWorkspaceDirectoryAction("migrate");
   }
 
   function closeSettings(): void {
@@ -214,6 +241,8 @@ export function useWorkspaceFeatureHostCoordinator(
     openAgentTeams,
     loadWorkspaceDirectory,
     chooseWorkspaceDirectory,
+    restoreWorkspaceDirectory,
+    migrateWorkspaceDirectory,
     closeSettings,
     ensureActiveFeatureDependencies,
     dispose

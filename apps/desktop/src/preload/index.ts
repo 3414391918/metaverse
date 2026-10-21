@@ -83,6 +83,8 @@ import {
 import { long } from "./long-api";
 import {
   chooseWorkspaceDirectory,
+  restoreWorkspaceDirectory,
+  migrateWorkspaceDirectory,
   exportLongManuscript,
   listGeneralSettings,
   listLibraryAgents,
@@ -227,7 +229,9 @@ const api: DeepWriteApi = {
   },
   workspaceDirectory: {
     list: listWorkspaceDirectory,
-    choose: chooseWorkspaceDirectory
+    choose: chooseWorkspaceDirectory,
+    restore: restoreWorkspaceDirectory,
+    migrate: migrateWorkspaceDirectory
   },
   appearance,
   generalSettings: {

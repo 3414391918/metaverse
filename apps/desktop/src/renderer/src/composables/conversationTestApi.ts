@@ -149,10 +149,16 @@ export function createConversationTestApi(
     },
     workspaceDirectory: {
       async list() {
-        return { path: null };
+        return { path: null, previousPath: null, migrationSourcePath: null };
       },
       async choose() {
         return null;
+      },
+      async restore() {
+        return { path: null, previousPath: null, migrationSourcePath: null };
+      },
+      async migrate() {
+        return { path: null, previousPath: null, migrationSourcePath: null };
       }
     },
     appearance: {

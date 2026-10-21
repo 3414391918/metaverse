@@ -18,7 +18,6 @@ import { handleManuscriptCommands } from "./manuscript-commands";
 import { handleRendererStateCommands } from "./renderer-state-commands";
 import { handleSettingsCommands } from "./settings-commands";
 import { handleToolLibraryCommands } from "./tool-library-commands";
-import { discoverToolCreatedProjects } from "../tool-created-projects";
 
 export async function dispatchCommand(
   ctx: IpcCommandContext,
@@ -58,7 +57,6 @@ export async function dispatchCommand(
     };
   }
 
-  await discoverToolCreatedProjects(ctx, command);
   const result =
     ctx.rendererStateFlush.handleCommand(ctx.senderWebContentsId, command) ??
     (await handleToolLibraryCommands(ctx, command)) ??

@@ -112,7 +112,9 @@ describe("LongManuscriptEditor", () => {
     );
     expect(editorSource).toContain(':visual="currentIsDraftBody"');
     expect(editorSource).toContain('@visual-input="recordVisualInput"');
-    expect(source).toContain("insertion.register(event, baseOffset, videoInsertion.open)");
+    expect(source).toContain(
+      "insertion.register(event, baseOffset, videoInsertion.open)"
+    );
     expect(source).toContain("<ChapterImageActions");
     expect(source).toContain("<ChapterVideoActions");
     expect(source).toContain('ref="previewElement"');

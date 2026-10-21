@@ -246,6 +246,8 @@ export interface DeepWriteApi
   workspaceDirectory: {
     list(): Promise<WorkspaceDirectorySettings>;
     choose(): Promise<WorkspaceDirectorySettings | null>;
+    restore(): Promise<WorkspaceDirectorySettings>;
+    migrate(): Promise<WorkspaceDirectorySettings>;
   };
   appearance: {
     list(): Promise<AppearanceSettingsSnapshot>;

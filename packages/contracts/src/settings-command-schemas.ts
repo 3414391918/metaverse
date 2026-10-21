@@ -28,7 +28,9 @@ import {
 } from "./prompt-templates";
 import {
   WorkspaceDirectoryChooseCommandEnvelopeSchema,
-  WorkspaceDirectoryListCommandEnvelopeSchema
+  WorkspaceDirectoryListCommandEnvelopeSchema,
+  WorkspaceDirectoryRestoreCommandEnvelopeSchema,
+  WorkspaceDirectoryMigrateCommandEnvelopeSchema
 } from "./workspace-directory";
 import { ToolLibraryCommandEnvelopeSchemas } from "./tool-library";
 
@@ -47,6 +49,8 @@ export const SettingsCommandEnvelopeSchemas = [
   LibraryAgentsResetCommandEnvelopeSchema,
   WorkspaceDirectoryListCommandEnvelopeSchema,
   WorkspaceDirectoryChooseCommandEnvelopeSchema,
+  WorkspaceDirectoryRestoreCommandEnvelopeSchema,
+  WorkspaceDirectoryMigrateCommandEnvelopeSchema,
   AppearanceListCommandEnvelopeSchema,
   AppearanceSaveCommandEnvelopeSchema,
   AppearanceFontsListCommandEnvelopeSchema,

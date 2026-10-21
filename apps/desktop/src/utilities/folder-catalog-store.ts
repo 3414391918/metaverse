@@ -232,6 +232,7 @@ export interface OpenFolderCatalogProjectResult<
 }
 export interface FolderCatalogStoreOptions {
   userDataPath: string;
+  projectRoot?: string;
   initialSnapshot?: CatalogSnapshot;
   now?: () => string;
   maxManifestBytes?: number;
@@ -380,7 +381,8 @@ export class FolderCatalogStore {
     this.registryPath = join(userDataPath, REGISTRY_FILE);
     this.registryBackupPath = join(userDataPath, REGISTRY_BACKUP_FILE);
     this.draftRecoveryPath = join(userDataPath, DRAFT_RECOVERY_FILE);
-    this.projectsRoot = join(userDataPath, "catalog-projects");
+    this.projectsRoot =
+      options.projectRoot ?? join(userDataPath, "catalog-projects");
     this.defaultProjectParents = {
       book: join(this.projectsRoot, "books"),
       "material-library": join(this.projectsRoot, "materials"),

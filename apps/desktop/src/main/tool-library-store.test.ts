@@ -2,6 +2,7 @@ import {
   mkdtemp,
   mkdir,
   readFile,
+  realpath,
   rm,
   symlink,
   writeFile
@@ -47,6 +48,21 @@ async function setup() {
   return { root, work, directory, defaults, store };
 }
 describe("editable tool library", () => {
+  it("shows no tools from the previous directory after switching to a new directory", async () => {
+    const { root, work, defaults, store } = await setup();
+    expect((await store.list()).tools.map(({ id }) => id)).toContain("alpha");
+    const next = join(root, "next");
+    await mkdir(next);
+    const workspace = new WorkspaceDirectoryStore(join(root, "user-data"));
+    await workspace.save(next);
+    expect((await store.list()).tools).toEqual([]);
+    expect(
+      (await new ToolLibraryStore(workspace, defaults).list()).tools
+    ).toEqual([]);
+    await workspace.restore();
+    expect((await store.list()).tools.map(({ id }) => id)).toContain("alpha");
+    expect((await workspace.list()).path).toBe(await realpath(work));
+  });
   it("merges legacy creation tools without dropping edited guidance", async () => {
     const { store, directory, defaults } = await setup();
     await store.list();

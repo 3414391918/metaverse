@@ -1,4 +1,11 @@
-import { mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  realpath,
+  rm,
+  writeFile
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -15,6 +22,11 @@ afterEach(async () => {
 });
 
 describe("WorkspaceDirectoryStore", () => {
+  const settings = (
+    path: string | null,
+    previousPath: string | null = null,
+    migrationSourcePath: string | null = null
+  ) => ({ path, previousPath, migrationSourcePath });
   it("defaults a first-time user to the system documents directory", async () => {
     const root = await mkdtemp(
       join(tmpdir(), "deepwrite-workspace-directory-default-")
@@ -26,12 +38,12 @@ describe("WorkspaceDirectoryStore", () => {
     const store = new WorkspaceDirectoryStore(userData);
     const initialized = await store.initializeDefault(documents);
     const canonicalDocuments = await realpath(documents);
-    expect(initialized).toEqual({ path: canonicalDocuments });
+    expect(initialized).toEqual(settings(canonicalDocuments));
 
     const reloaded = new WorkspaceDirectoryStore(userData);
-    await expect(reloaded.list()).resolves.toEqual({
-      path: canonicalDocuments
-    });
+    await expect(reloaded.list()).resolves.toEqual(
+      settings(canonicalDocuments)
+    );
   });
 
   it("keeps an existing workspace directory when initializing the default", async () => {
@@ -47,10 +59,10 @@ describe("WorkspaceDirectoryStore", () => {
     const canonicalExisting = await realpath(existing);
     await store.save(existing);
 
-    await expect(store.initializeDefault(documents)).resolves.toEqual({
-      path: canonicalExisting
-    });
-    await expect(store.list()).resolves.toEqual({ path: canonicalExisting });
+    await expect(store.initializeDefault(documents)).resolves.toEqual(
+      settings(canonicalExisting)
+    );
+    await expect(store.list()).resolves.toEqual(settings(canonicalExisting));
   });
 
   it("starts unset and persists freely switchable directories", async () => {
@@ -63,16 +75,18 @@ describe("WorkspaceDirectoryStore", () => {
     await Promise.all([mkdir(first), mkdir(second)]);
 
     const store = new WorkspaceDirectoryStore(join(root, "user-data"));
-    await expect(store.list()).resolves.toEqual({ path: null });
+    await expect(store.list()).resolves.toEqual(settings(null));
     const canonicalFirst = await realpath(first);
     const canonicalSecond = await realpath(second);
-    await expect(store.save(first)).resolves.toEqual({ path: canonicalFirst });
-    await expect(store.save(second)).resolves.toEqual({
-      path: canonicalSecond
-    });
+    await expect(store.save(first)).resolves.toEqual(settings(canonicalFirst));
+    await expect(store.save(second)).resolves.toEqual(
+      settings(canonicalSecond, canonicalFirst)
+    );
 
     const reloaded = new WorkspaceDirectoryStore(join(root, "user-data"));
-    await expect(reloaded.list()).resolves.toEqual({ path: canonicalSecond });
+    await expect(reloaded.list()).resolves.toEqual(
+      settings(canonicalSecond, canonicalFirst)
+    );
   });
 
   it("rejects files as workspace directories", async () => {
@@ -86,5 +100,52 @@ describe("WorkspaceDirectoryStore", () => {
     await expect(
       new WorkspaceDirectoryStore(join(root, "user-data")).save(file)
     ).rejects.toThrow(/真实文件夹/u);
+  });
+
+  it("restores only the immediately previous directory and migrates its replacement without deleting it", async () => {
+    const root = await mkdtemp(join(tmpdir(), "deepwrite-workspace-restore-"));
+    temporaryRoots.push(root);
+    const first = join(root, "first");
+    const second = join(root, "second");
+    const third = join(root, "third");
+    await Promise.all([mkdir(first), mkdir(second), mkdir(third)]);
+    const store = new WorkspaceDirectoryStore(join(root, "user-data"));
+    await store.save(first);
+    await store.save(second);
+    await store.save(third);
+    const restored = await store.restore();
+    expect(restored).toEqual(
+      settings(await realpath(second), null, await realpath(third))
+    );
+    await expect(store.restore()).rejects.toThrow("没有可恢复");
+    await mkdir(join(third, "books"));
+    await writeFile(join(third, "books", "chapter.txt"), "第三个目录的数据");
+    const migrated = await store.migrate();
+    expect(migrated).toEqual(settings(await realpath(second)));
+    expect(await readFile(join(second, "books", "chapter.txt"), "utf8")).toBe(
+      "第三个目录的数据"
+    );
+    expect(await readFile(join(third, "books", "chapter.txt"), "utf8")).toBe(
+      "第三个目录的数据"
+    );
+  });
+
+  it("refuses conflicting migration files without overwriting the destination", async () => {
+    const root = await mkdtemp(join(tmpdir(), "deepwrite-workspace-conflict-"));
+    temporaryRoots.push(root);
+    const first = join(root, "first");
+    const second = join(root, "second");
+    await Promise.all([mkdir(first), mkdir(second)]);
+    await writeFile(join(first, "same.txt"), "target");
+    await writeFile(join(second, "same.txt"), "source");
+    const store = new WorkspaceDirectoryStore(join(root, "user-data"));
+    await store.save(first);
+    await store.save(second);
+    await store.restore();
+    await expect(store.migrate()).rejects.toThrow("未覆盖");
+    expect(await readFile(join(first, "same.txt"), "utf8")).toBe("target");
+    expect((await store.list()).migrationSourcePath).toBe(
+      await realpath(second)
+    );
   });
 });

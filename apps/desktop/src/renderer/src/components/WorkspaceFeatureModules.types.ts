@@ -31,6 +31,8 @@ export interface SettingsFeatureModule {
   runtimeAvailable: boolean;
   workspaceDirectoryPath: string | null;
   workspaceDirectoryLoading: boolean;
+  workspaceDirectoryPreviousPath: string | null;
+  workspaceDirectoryMigrationSourcePath: string | null;
 }
 
 export type WorkspaceFeatureModule =

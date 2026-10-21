@@ -93,14 +93,26 @@ export class PromptTemplateStore {
     );
   }
 
-  private async paths(): Promise<{ directory: string; json: string }> {
-    const root = (await this.workspaceDirectoryStore.list()).path;
+  private async paths(): Promise<{
+    directory: string;
+    json: string;
+    importLegacy: boolean;
+  }> {
+    const {
+      path: root,
+      previousPath,
+      migrationSourcePath
+    } = await this.workspaceDirectoryStore.list();
     if (!root) throw new Error("请先选择工作目录。");
     const info = await lstat(root);
     if (!info.isDirectory() || info.isSymbolicLink())
       throw new Error("工作目录不可用，请重新选择。");
     const directory = join(root, "prompt-templates");
-    return { directory, json: join(directory, "templates.json") };
+    return {
+      directory,
+      json: join(directory, "templates.json"),
+      importLegacy: !previousPath && !migrationSourcePath
+    };
   }
 
   private async load(): Promise<{
@@ -110,7 +122,9 @@ export class PromptTemplateStore {
   }> {
     const paths = await this.paths();
     const current = await readJson(paths.json);
-    const legacy = await readJson(this.legacyPath);
+    const legacy = paths.importLegacy
+      ? await readJson(this.legacyPath)
+      : undefined;
     if (current !== undefined) {
       const templates = PromptTemplatesSchema.parse(current);
       const older =

@@ -41,6 +41,26 @@ async function fixture() {
 }
 
 describe("workspace prompt templates", () => {
+  it("does not import legacy templates into a newly switched directory", async () => {
+    const setup = await fixture();
+    const legacyPath = join(
+      setup.userData,
+      "config",
+      "long-workspace-agents.json"
+    );
+    await writeFile(
+      legacyPath,
+      JSON.stringify({
+        promptTemplates: [{ id: "legacy", name: "旧模板", content: "旧内容" }]
+      })
+    );
+    const next = join(setup.root, "next");
+    await mkdir(next);
+    await setup.directory.save(next);
+    expect(await setup.store.list()).toEqual([]);
+    await setup.directory.restore();
+    expect(await setup.store.list()).toEqual([]);
+  });
   it("moves the existing templates into the chosen work directory without touching agent settings", async () => {
     const setup = await fixture();
     const legacyPath = join(

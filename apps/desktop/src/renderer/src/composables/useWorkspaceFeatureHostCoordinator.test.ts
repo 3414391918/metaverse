@@ -23,6 +23,9 @@ function deferred<Value>() {
   });
   return { promise, resolve, reject };
 }
+function workspace(path: string) {
+  return { path, previousPath: null, migrationSourcePath: null };
+}
 interface HarnessOverrides {
   runtimeAvailable?: boolean;
   saveBeforeLeaving?: () => Promise<boolean>;
@@ -51,13 +54,18 @@ function createHarness(overrides: HarnessOverrides = {}) {
       overrides.ensureAuthoringLoaded ?? (async () => undefined)
     );
   const listDirectory = vi.fn(
-      overrides.loadDirectory ?? (async () => ({ path: "/workspace-a" }))
+      overrides.loadDirectory ?? (async () => workspace("/workspace-a"))
     ),
     chooseDirectory = vi.fn(
-      overrides.chooseDirectory ?? (async () => ({ path: "/workspace-b" }))
+      overrides.chooseDirectory ?? (async () => workspace("/workspace-b"))
     );
   const api = {
-    workspaceDirectory: { list: listDirectory, choose: chooseDirectory }
+    workspaceDirectory: {
+      list: listDirectory,
+      choose: chooseDirectory,
+      restore: vi.fn(async () => workspace("/workspace-a")),
+      migrate: vi.fn(async () => workspace("/workspace-a"))
+    }
   };
   let runtimeAvailable = overrides.runtimeAvailable ?? true;
   const loaders = {
@@ -340,9 +348,7 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
 
     await harness.coordinator.chooseWorkspaceDirectory();
     expect(harness.settingsStore.workspaceDirectoryPath).toBe("/workspace-b");
-    expect(harness.successes).toEqual([
-      "工作目录已切换；现有项目保持原位置不变"
-    ]);
+    expect(harness.successes).toEqual(["工作目录已切换"]);
 
     const cancelled = createHarness({
       chooseDirectory: async () => null
@@ -370,7 +376,7 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
     const firstChoice = guarded.coordinator.chooseWorkspaceDirectory();
     await guarded.coordinator.chooseWorkspaceDirectory();
     expect(guarded.chooseDirectory).toHaveBeenCalledOnce();
-    pendingChoice.resolve({ path: "/workspace-c" });
+    pendingChoice.resolve(workspace("/workspace-c"));
     await firstChoice;
   });
 });
