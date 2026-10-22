@@ -63,7 +63,8 @@ describe("WorkspaceFeatureModules boundary", () => {
   it("keeps settings and tools behind the shell boundary", () => {
     expect(source).toContain("v-else-if=\"module.kind === 'settings'\"");
     expect(source).toContain(':initial-category="module.initialCategory"');
-    expect(source).toContain("v-if=\"module.kind === 'tools'\"");
+    expect(source).toContain("v-if=\"module.kind === 'resources'\"");
+    expect(source).toContain("v-else-if=\"module.kind === 'tools'\"");
     expect(source).not.toContain(":authoring-generating");
   });
 });

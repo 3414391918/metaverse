@@ -20,12 +20,19 @@ async function fixture(characterDirectory = "a".repeat(32)) {
     dir = join(book, "long/characters", characterDirectory);
   await mkdir(join(dir, "assets"), { recursive: true });
   await mkdir(user);
+  await mkdir(join(user, "config"));
+  const dataPath = join(root, ".metaverse");
+  await mkdir(dataPath);
+  await writeFile(
+    join(user, "config/workspace-directory.json"),
+    JSON.stringify({ version: 1, path: root })
+  );
   const assetId = "b".repeat(32),
     characterId = "character_example",
     bookId = "longbook_example",
     filename = assetId + ".png";
   await writeFile(
-    join(user, "long-project-registry.json"),
+    join(dataPath, "long-project-registry.json"),
     JSON.stringify({ projects: [{ bookId, projectDirectory: book }] })
   );
   await writeFile(

@@ -78,6 +78,7 @@ import type {
   ExportLongManuscriptResult
 } from "./long-manuscript-export";
 import type { LongPreloadApi } from "./long-preload-api";
+import type { ResourceManagerApi } from "./resource-manager";
 import type { LongAgentId } from "./long-workspace";
 import type { ModelPreloadApi } from "./model-preload-api";
 import type { ModelUsageDashboard, ModelUsageQueryInput } from "./model-usage";
@@ -105,6 +106,7 @@ export interface DeepWriteApi
   extends TextContextMenuPreloadApi, ChatAssistantConfigApi {
   fishAudio: FishAudioPreloadApi;
   toolLibrary: import("./tool-library").ToolLibraryApi;
+  resourceManager?: ResourceManagerApi;
   windowFrame?: WindowFrameApi;
   system: {
     health(): Promise<SystemHealthPayload>;

@@ -36,6 +36,7 @@ export interface SettingsFeatureModule {
 }
 
 export type WorkspaceFeatureModule =
+  | { kind: "resources" }
   | { kind: "tools" }
   | { kind: "voice-manager" }
   | { kind: "prompt-templates" }

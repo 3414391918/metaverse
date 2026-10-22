@@ -18,6 +18,7 @@ import { handleManuscriptCommands } from "./manuscript-commands";
 import { handleRendererStateCommands } from "./renderer-state-commands";
 import { handleSettingsCommands } from "./settings-commands";
 import { handleToolLibraryCommands } from "./tool-library-commands";
+import { handleResourceManagerCommands } from "./resource-manager-commands";
 
 export async function dispatchCommand(
   ctx: IpcCommandContext,
@@ -59,6 +60,7 @@ export async function dispatchCommand(
 
   const result =
     ctx.rendererStateFlush.handleCommand(ctx.senderWebContentsId, command) ??
+    (await handleResourceManagerCommands(ctx, command)) ??
     (await handleToolLibraryCommands(ctx, command)) ??
     (await handleFishAudioCommands(ctx, command)) ??
     (await handleChapterImageCommands(ctx, command)) ??

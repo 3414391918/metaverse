@@ -11,6 +11,7 @@ import {
   openCharacterAssetFile,
   readCharacterAssetFile
 } from "./character-asset-files";
+import { workspaceDataPath } from "./workspace-data-path";
 const mimeTypes: Record<string, string> = {
   png: "image/png",
   jpg: "image/jpeg",
@@ -40,7 +41,7 @@ async function assetLocation(
   if (!/^[a-f0-9]{32}$/u.test(input.assetId)) throw new Error("图片标识无效");
   const registry = record(
     await json(
-      join(await realpath(userDataPath), "long-project-registry.json"),
+      join(await workspaceDataPath(userDataPath), "long-project-registry.json"),
       4 * 1024 * 1024
     )
   );

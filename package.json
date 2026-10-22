@@ -35,8 +35,6 @@
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
-    "@napi-rs/canvas-darwin-arm64": "1.0.2",
-    "@rolldown/binding-darwin-arm64": "1.1.5",
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
     "@vue/tsconfig": "catalog:",
@@ -52,5 +50,9 @@
     "vite": "catalog:",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
+  },
+  "optionalDependencies": {
+    "@napi-rs/canvas-darwin-arm64": "1.0.2",
+    "@rolldown/binding-darwin-arm64": "1.1.5"
   }
 }

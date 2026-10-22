@@ -34,7 +34,7 @@ function renderInline(value: string, options: RenderMarkdownOptions): string {
         code
           ? `<code>${escapeHtml(code)}</code>`
           : videoSource
-            ? `<video src="${escapeHtml(url!)}" controls preload="metadata" playsinline></video>`
+            ? `<video src="${escapeHtml(url!)}" controls loop preload="metadata" playsinline></video>`
             : `<img src="${escapeHtml(url!)}" alt="${escapeHtml(label!)}" loading=lazy>`
       );
       return token;

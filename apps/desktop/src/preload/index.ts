@@ -8,6 +8,7 @@ import {
   type UpdateState
 } from "@deepwrite/contracts";
 import { contextBridge, ipcRenderer } from "electron";
+import { resourceManagerApi } from "./resource-manager-api";
 import {
   createAgentTeam,
   deleteAgentTeam,
@@ -109,6 +110,7 @@ function removedModelFeature(): Promise<never> {
   return Promise.reject(new Error("应用内模型调用功能已移除。"));
 }
 const api: DeepWriteApi = {
+  resourceManager: resourceManagerApi,
   fishAudio,
   toolLibrary,
   textContextMenu,

@@ -338,6 +338,12 @@ export type {
 } from "./long-chapter-image";
 export { LONG_CHAPTER_VIDEO_MAX_BYTES } from "./long-chapter-video";
 export type {
+  ResourceManagerApi,
+  ResourceManagerRequest,
+  ResourceManagerResult,
+  ResourceEntry
+} from "./resource-manager";
+export type {
   LongReadChapterVideoInput,
   LongReadChapterVideoResult,
   LongAddChapterVideoInput,

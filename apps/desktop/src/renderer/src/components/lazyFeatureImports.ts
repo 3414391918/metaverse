@@ -8,6 +8,7 @@ export const loadSettingsPage = () => import("./SettingsPage.vue");
 export const loadPromptTemplateManager = () =>
   import("./PromptTemplateManager.vue");
 export const loadToolManager = () => import("./ToolManager.vue");
+export const loadResourceManager = () => import("./ResourceManager.vue");
 export const loadWorkspaceFeatureModules = () =>
   import("./WorkspaceFeatureModules.vue");
 export const loadWorkspaceDialogLayer = () =>

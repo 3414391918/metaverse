@@ -8,6 +8,7 @@ import {
   LongOpenBookResultSchema
 } from "@deepwrite/contracts";
 import type { UtilitySupervisor } from "./supervisor";
+import { workspaceDataPath } from "./workspace-data-path";
 
 const SMOKE_IMAGE_WIDTH = 3072;
 const SMOKE_IMAGE_HEIGHT = 2048;
@@ -77,7 +78,10 @@ export async function runChapterImageSmoke(
   if (result.status === "rejected") throw new Error(result.error.message);
   const { book, summary } = LongOpenBookResultSchema.parse(result.payload);
   const registry = JSON.parse(
-    await readFile(join(profile, "long-project-registry.json"), "utf8")
+    await readFile(
+      join(await workspaceDataPath(profile), "long-project-registry.json"),
+      "utf8"
+    )
   ) as { projects: { bookId: string; projectDirectory: string }[] };
   const project = registry.projects.find(
     (item) => item.bookId === book.id

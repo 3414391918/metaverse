@@ -1,5 +1,12 @@
 import { readFileSync } from "node:fs";
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  symlink,
+  writeFile
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -35,9 +42,16 @@ async function fixture(chapterDirectory = chapter): Promise<{
     "images"
   );
   await mkdir(userData);
+  await mkdir(join(userData, "config"));
+  const dataPath = join(root, ".metaverse");
+  await mkdir(dataPath);
+  await writeFile(
+    join(userData, "config/workspace-directory.json"),
+    JSON.stringify({ version: 1, path: root })
+  );
   await mkdir(imageDirectory, { recursive: true });
   await writeFile(
-    join(userData, "long-project-registry.json"),
+    join(dataPath, "long-project-registry.json"),
     JSON.stringify({ projects: [{ bookId, projectDirectory: book }] })
   );
   await writeFile(
@@ -57,6 +71,26 @@ async function fixture(chapterDirectory = chapter): Promise<{
 }
 
 describe("long image protocol", () => {
+  it("follows workspace switches and cannot fall back to the old global registry", async () => {
+    const { userData } = await fixture();
+    const handler = createLongImageProtocolHandler(userData);
+    expect((await handler(new Request(url))).status).toBe(200);
+    await writeFile(
+      join(userData, "long-project-registry.json"),
+      await readFile(join(userData, "../.metaverse/long-project-registry.json"))
+    );
+    const next = join(userData, "../next");
+    await mkdir(join(next, ".metaverse"), { recursive: true });
+    await writeFile(
+      join(next, ".metaverse/long-project-registry.json"),
+      '{"projects":[]}'
+    );
+    await writeFile(
+      join(userData, "config/workspace-directory.json"),
+      JSON.stringify({ version: 1, path: next })
+    );
+    expect((await handler(new Request(url))).status).toBe(404);
+  });
   it("is installed before rendering and allowed only in image CSP", () => {
     const main = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
     const html = readFileSync(

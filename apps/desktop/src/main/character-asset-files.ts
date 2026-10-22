@@ -29,7 +29,10 @@ export async function openCharacterAssetFile(
   handle: FileHandle;
   info: BigIntStats;
 }> {
-  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  const handle = await open(
+    path,
+    constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)
+  );
   try {
     const info = await handle.stat({ bigint: true });
     if (

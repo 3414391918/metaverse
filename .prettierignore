@@ -2,6 +2,7 @@
 .codex/
 .git/
 resources/
+metadata/
 **/node_modules/
 **/out/
 **/dist/

@@ -30,6 +30,9 @@ export const PromptTemplateManager = lazyFeature((features) =>
 export const ToolManager = lazyFeature((features) =>
   features.loadToolManager()
 );
+export const ResourceManager = lazyFeature((features) =>
+  features.loadResourceManager()
+);
 export const WorkspaceFeatureModules = lazyFeature((features) =>
   features.loadWorkspaceFeatureModules()
 );

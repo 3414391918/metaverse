@@ -26,6 +26,7 @@ export default defineConfig(
     "**/release/**",
     "**/coverage/**",
     "resources/**",
+    "metadata/**",
     ".agents/**",
     ".codex/**"
   ]),

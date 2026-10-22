@@ -33,8 +33,10 @@ import {
   WorkspaceDirectoryMigrateCommandEnvelopeSchema
 } from "./workspace-directory";
 import { ToolLibraryCommandEnvelopeSchemas } from "./tool-library";
+import { ResourceManagerCommandEnvelopeSchema } from "./resource-manager";
 
 export const SettingsCommandEnvelopeSchemas = [
+  ResourceManagerCommandEnvelopeSchema,
   ...ToolLibraryCommandEnvelopeSchemas,
   LongAgentsListCommandEnvelopeSchema,
   LongAgentsSaveCommandEnvelopeSchema,

@@ -178,6 +178,7 @@ defineExpose({ focusRange, getSelection });
         :data-segment-end="segment.end"
         :src="displayVideoUrl(segment.imageSource ?? '')"
         controls
+        loop
         preload="metadata"
         playsinline
       />

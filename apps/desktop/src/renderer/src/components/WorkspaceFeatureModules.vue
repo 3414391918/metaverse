@@ -17,7 +17,8 @@ import type {
 import {
   SettingsPage,
   PromptTemplateManager,
-  ToolManager
+  ToolManager,
+  ResourceManager
 } from "./lazyAppComponents";
 import type { WorkspaceFeatureModule } from "./WorkspaceFeatureModules.types";
 import WorkspaceFeatureFrame from "./WorkspaceFeatureFrame.vue";
@@ -62,7 +63,16 @@ const emit = defineEmits<{
 
 <template>
   <WorkspaceFeatureFrame
-    v-if="module.kind === 'tools'"
+    v-if="module.kind === 'resources'"
+    class="workspace-settings-main-view"
+    :left-collapsed="leftCollapsed"
+    expand-button-class="workspace-settings-expand-sidebar"
+    label="资源管理"
+    @expand-left="emit('expandLeft')"
+    ><ResourceManager
+  /></WorkspaceFeatureFrame>
+  <WorkspaceFeatureFrame
+    v-else-if="module.kind === 'tools'"
     class="workspace-settings-main-view tool-manager-main-view"
     :left-collapsed="leftCollapsed"
     expand-button-class="workspace-settings-expand-sidebar"

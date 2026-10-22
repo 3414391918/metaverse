@@ -1,6 +1,5 @@
-import { constants } from "node:fs";
-import { lstat, open, realpath } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { lstat, realpath } from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import {
   LongBookIdSchema,
@@ -8,6 +7,11 @@ import {
 } from "@deepwrite/contracts";
 import { protocol } from "electron";
 import { characterAssetImageResponse } from "./character-asset-access";
+import {
+  openCharacterAssetFile,
+  readCharacterAssetFile
+} from "./character-asset-files";
+import { workspaceDataPath } from "./workspace-data-path";
 
 const SCHEME = "deepwrite-image";
 const REGISTRY_MAX_BYTES = 4 * 1024 * 1024;
@@ -45,14 +49,16 @@ async function readBoundedJson(
   path: string,
   maximum: number
 ): Promise<unknown> {
-  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
-  try {
-    const info = await handle.stat();
-    if (!info.isFile() || info.size > maximum) throw new Error("invalid file");
-    return JSON.parse(await handle.readFile({ encoding: "utf8" })) as unknown;
-  } finally {
-    await handle.close();
-  }
+  const parent = await realpath(dirname(path));
+  return JSON.parse(
+    (
+      await readCharacterAssetFile(
+        join(parent, basename(path)),
+        maximum,
+        parent
+      )
+    ).toString("utf8")
+  ) as unknown;
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {
@@ -69,7 +75,7 @@ async function registeredChapterDirectory(
 ): Promise<string | undefined> {
   const registry = record(
     await readBoundedJson(
-      join(userDataPath, "long-project-registry.json"),
+      join(await workspaceDataPath(userDataPath), "long-project-registry.json"),
       REGISTRY_MAX_BYTES
     )
   );
@@ -167,9 +173,10 @@ export function createLongImageProtocolHandler(
       );
       if (!directory) return new Response(null, { status: 404 });
       const path = join(directory, filename);
-      const handle = await open(
+      const { handle } = await openCharacterAssetFile(
         path,
-        constants.O_RDONLY | constants.O_NOFOLLOW
+        IMAGE_MAX_BYTES,
+        directory
       );
       try {
         const info = await handle.stat();

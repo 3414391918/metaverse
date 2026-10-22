@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { LongAgentConfigStore } from "./long-agent-config-store";
 import type { LibraryAgentConfigStore } from "./library-agent-config-store";
+import { workspaceDataPath } from "./workspace-data-path";
 
 export interface ToolGuidanceFile {
   toolId: string;
@@ -40,7 +41,10 @@ export async function savedToolGuidance(
   }
   try {
     const registry = JSON.parse(
-      await readFile(join(userDataPath, "catalog-registry.json"), "utf8")
+      await readFile(
+        join(await workspaceDataPath(userDataPath), "catalog-registry.json"),
+        "utf8"
+      )
     ) as { projects?: Array<{ domain?: string; projectDirectory?: string }> };
     const directories = (registry.projects ?? [])
       .filter(

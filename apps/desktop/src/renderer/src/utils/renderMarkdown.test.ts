@@ -10,7 +10,7 @@ describe("renderMarkdown", () => {
           : undefined
     });
     expect(output).toContain(
-      '<video src="deepwrite-image://book/demo/chapter/videos/001.mp4" controls preload="metadata" playsinline></video>'
+      '<video src="deepwrite-image://book/demo/chapter/videos/001.mp4" controls loop preload="metadata" playsinline></video>'
     );
   });
   it("renders chapter-relative Markdown images through a supplied URL resolver", () => {
