@@ -77,6 +77,7 @@ const navItems: Array<{
   label: string;
   icon: "wand" | "file" | "mic" | "folder";
 }> = [
+  { id: "assistant", label: "万能助手", icon: "wand" },
   { id: "resources", label: "资源管理", icon: "folder" },
   { id: "prompt-templates", label: "提示词模板", icon: "file" },
   { id: "tools", label: "工具管理", icon: "wand" },

@@ -1,3 +1,4 @@
+import type { AssistantApi } from "./assistant";
 import type {
   AgentTeamCatalogSnapshot,
   AgentTeamPackageExportResult,
@@ -107,6 +108,7 @@ export interface DeepWriteApi
   fishAudio: FishAudioPreloadApi;
   toolLibrary: import("./tool-library").ToolLibraryApi;
   resourceManager?: ResourceManagerApi;
+  assistant?: AssistantApi;
   windowFrame?: WindowFrameApi;
   system: {
     health(): Promise<SystemHealthPayload>;

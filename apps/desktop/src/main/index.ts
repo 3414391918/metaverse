@@ -1,3 +1,4 @@
+import { stopAssistant } from "./assistant-service";
 import {
   createDefaultAppearanceSettings,
   createDefaultGeneralSettings,
@@ -7,7 +8,14 @@ import {
   type GeneralSettings,
   type SystemEventEnvelope
 } from "@deepwrite/contracts";
-import { app, BrowserWindow, dialog, Menu, nativeTheme } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  Menu,
+  nativeTheme,
+  session
+} from "electron";
 import { createDesktopReadyAnnouncer } from "./announce-desktop-ready";
 import { AppAlertStore } from "./app-alert-store";
 import {
@@ -94,7 +102,10 @@ const gracefulShutdown = createGracefulShutdown({
     await rendererStateFlush.request(mainWindow);
     mainWindow?.close();
   },
-  shutdownUtilities: () => supervisor.shutdownAll(),
+  shutdownUtilities: async () => {
+    await stopAssistant();
+    await supervisor.shutdownAll();
+  },
   flushUsage: () => undefined,
   reportUsage: () => undefined,
   complete(installUpdate) {
@@ -341,6 +352,10 @@ if (!hasSingleInstanceLock) {
     desktopServices = services;
     ({ updateService, appAlertStore } = services);
     installAppearanceFontProtocolHandler(services.appearanceService);
+    installAppearanceFontProtocolHandler(
+      services.appearanceService,
+      session.fromPartition("persist:metaverse-assistant").protocol
+    );
     installLongImageProtocolHandler(userDataPath);
     await desktopStartup.step("workspace", () =>
       services.workspaceDirectoryStore.initializeDefault(

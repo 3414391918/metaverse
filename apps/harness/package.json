@@ -1,0 +1,20 @@
+{
+  "name": "@metaverse/harness-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-session-format-catalog": "0.2.1-rc.2",
+    "fflate": "0.8.3",
+    "pnpm": "11.28.5"
+  },
+  "optionalDependencies": {
+    "node-bin-darwin-arm64": "24.19.0",
+    "node-darwin-x64": "24.19.0",
+    "node-win-arm64": "24.19.0",
+    "node-win-x64": "24.19.0",
+    "node-linux-arm64": "24.19.0",
+    "node-linux-x64": "24.19.0"
+  }
+}

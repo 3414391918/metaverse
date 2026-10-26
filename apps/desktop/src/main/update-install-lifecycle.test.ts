@@ -18,8 +18,10 @@ describe("update install lifecycle", () => {
     );
 
     expect(helperStart).toBeGreaterThanOrEqual(0);
-    expect(helper).toContain(
-      "shutdownUtilities: () => supervisor.shutdownAll()"
+    expect(helper).toContain("shutdownUtilities: async () =>");
+    expect(helper.indexOf("await stopAssistant()")).toBeGreaterThanOrEqual(0);
+    expect(helper.indexOf("await stopAssistant()")).toBeLessThan(
+      helper.indexOf("await supervisor.shutdownAll()")
     );
     expect(helper).toContain("flushUsage: () => undefined");
     const shutdownCompleteIndex = helper.indexOf("shutdownComplete = true");

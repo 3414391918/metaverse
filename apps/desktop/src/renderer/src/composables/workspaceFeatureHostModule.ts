@@ -12,6 +12,8 @@ export function buildWorkspaceFeatureModule(
   buildSettingsModule?: typeof buildSettingsFeatureModule
 ): WorkspaceFeatureModule | null {
   switch (feature) {
+    case "assistant":
+      return { kind: "assistant" };
     case "resources":
       return { kind: "resources" };
     case "settings":

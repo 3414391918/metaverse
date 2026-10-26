@@ -6,9 +6,9 @@
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
-    "predev": "node ../../tools/ensure-electron-runtime.mjs && node ../../tools/build-toolkit.mjs",
+    "predev": "node ../../tools/build-harness.mjs && node ../../tools/ensure-electron-runtime.mjs && node ../../tools/build-toolkit.mjs",
     "dev": "node ../../tools/run-desktop-dev.mjs",
-    "build": "node ../../tools/build-toolkit.mjs && electron-vite build && node ../../tools/check-renderer-build.mjs",
+    "build": "node ../../tools/build-harness.mjs && node ../../tools/build-toolkit.mjs && electron-vite build && node ../../tools/check-renderer-build.mjs",
     "prepreview": "node ../../tools/ensure-electron-runtime.mjs",
     "preview": "electron-vite preview",
     "presmoke": "node ../../tools/ensure-electron-runtime.mjs",

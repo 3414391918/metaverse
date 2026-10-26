@@ -65,3 +65,5 @@ export * from "./long-character-appearance";
 export * from "./long-character-profile-markdown";
 export * from "./long-chapter-image";
 export * from "./long-chapter-video";
+
+export * from "./assistant";

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type {
   AppLanguage,
+  BodyTextFormat,
+  BodyTextFormats,
+  BodyTextFormatChange,
   GeneralPermissionMode,
   WorkspacePaneLayout
 } from "@deepwrite/contracts";
@@ -15,6 +18,7 @@ defineProps<{
   showInMenuBar: boolean;
   useNetworkProxy: boolean;
   workspacePaneLayout: WorkspacePaneLayout;
+  bodyTextFormats: BodyTextFormats;
 }>();
 
 const emit = defineEmits<{
@@ -26,11 +30,18 @@ const emit = defineEmits<{
   updateShowInMenuBar: [enabled: boolean];
   updateUseNetworkProxy: [enabled: boolean];
   updateWorkspacePaneLayout: [layout: WorkspacePaneLayout];
+  updateBodyTextFormat: [change: BodyTextFormatChange];
 }>();
 
 const languageOptions: Array<{ value: AppLanguage; label: string }> = [
   { value: "auto", label: "自动检测（简体中文）" },
   { value: "zh-CN", label: "简体中文" }
+];
+const formatOptions: Array<{ value: BodyTextFormat; label: string }> = [
+  { value: "flush-compact", label: "不缩进，段间不空行" },
+  { value: "flush-spaced", label: "不缩进，段间空一行" },
+  { value: "indent-compact", label: "缩进两字，段间不空行" },
+  { value: "indent-spaced", label: "缩进两字，段间空一行" }
 ];
 </script>
 
@@ -69,6 +80,28 @@ const languageOptions: Array<{ value: AppLanguage; label: string }> = [
           :menu-min-width="210"
           @update:model-value="
             emit('updateLanguage', String($event) as AppLanguage)
+          "
+        />
+      </div>
+      <div class="settings-item settings-select-item">
+        <span class="settings-item-text"
+          ><strong>小说正文格式规范</strong
+          ><small
+            >点击正文工具栏的“一键规范格式”时应用，可撤销；缩进两字使用两个全角空格。</small
+          ></span
+        >
+        <PopupSelect
+          class="general-select-control body-format-select"
+          :model-value="bodyTextFormats.long"
+          :options="formatOptions"
+          accessible-label="选择小说正文格式规范"
+          align="end"
+          :menu-min-width="240"
+          @update:model-value="
+            emit('updateBodyTextFormat', {
+              kind: 'long',
+              format: String($event) as BodyTextFormat
+            })
           "
         />
       </div>
@@ -126,5 +159,11 @@ const languageOptions: Array<{ value: AppLanguage; label: string }> = [
   min-width: 160px;
   max-width: 210px;
   flex: 0 1 210px;
+}
+
+.body-format-select {
+  width: 260px;
+  max-width: 260px;
+  flex: 0 1 260px;
 }
 </style>

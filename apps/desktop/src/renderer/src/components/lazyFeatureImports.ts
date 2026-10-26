@@ -55,3 +55,5 @@ export const loadSaveConflictDialog = () => import("./SaveConflictDialog.vue");
 export const loadStartupAlertDialog = () => import("./StartupAlertDialog.vue");
 
 export const loadWindowMenuBar = () => import("./WindowMenuBar.vue");
+
+export const loadAssistantSurface = () => import("./AssistantSurface.vue");

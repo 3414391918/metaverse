@@ -279,4 +279,5 @@ export type DialogMode =
   | "revision-analysis"
   | "voice-manager"
   | "prompt-templates"
-  | "resources";
+  | "resources"
+  | "assistant";

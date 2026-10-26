@@ -1,3 +1,4 @@
+import { AssistantCommandEnvelopeSchema } from "./assistant";
 import {
   AppearanceFontsInstallCommandEnvelopeSchema,
   AppearanceFontsListCommandEnvelopeSchema,
@@ -37,6 +38,7 @@ import { ResourceManagerCommandEnvelopeSchema } from "./resource-manager";
 
 export const SettingsCommandEnvelopeSchemas = [
   ResourceManagerCommandEnvelopeSchema,
+  AssistantCommandEnvelopeSchema,
   ...ToolLibraryCommandEnvelopeSchemas,
   LongAgentsListCommandEnvelopeSchema,
   LongAgentsSaveCommandEnvelopeSchema,

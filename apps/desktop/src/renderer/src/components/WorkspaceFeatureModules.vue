@@ -11,14 +11,14 @@ import type {
   LibraryAgentDomain,
   LibraryAgentSettingsInput,
   LongAgentSettingsInput,
-  TextViewMode,
   WorkspacePaneLayout
 } from "@deepwrite/contracts";
 import {
   SettingsPage,
   PromptTemplateManager,
   ToolManager,
-  ResourceManager
+  ResourceManager,
+  AssistantSurface
 } from "./lazyAppComponents";
 import type { WorkspaceFeatureModule } from "./WorkspaceFeatureModules.types";
 import WorkspaceFeatureFrame from "./WorkspaceFeatureFrame.vue";
@@ -40,7 +40,6 @@ const emit = defineEmits<{
   updateShowInMenuBar: [enabled: boolean];
   updateUseNetworkProxy: [enabled: boolean];
   updateWorkspacePaneLayout: [layout: WorkspacePaneLayout];
-  updateDefaultTextViewMode: [mode: TextViewMode];
   updateBodyTextFormat: [change: BodyTextFormatChange];
   retryLongAgents: [];
   saveLongAgents: [settings: LongAgentSettingsInput];
@@ -63,7 +62,16 @@ const emit = defineEmits<{
 
 <template>
   <WorkspaceFeatureFrame
-    v-if="module.kind === 'resources'"
+    v-if="module.kind === 'assistant'"
+    class="workspace-settings-main-view"
+    :left-collapsed="leftCollapsed"
+    expand-button-class="workspace-settings-expand-sidebar"
+    label="万能助手"
+    @expand-left="emit('expandLeft')"
+    ><AssistantSurface
+  /></WorkspaceFeatureFrame>
+  <WorkspaceFeatureFrame
+    v-else-if="module.kind === 'resources'"
     class="workspace-settings-main-view"
     :left-collapsed="leftCollapsed"
     expand-button-class="workspace-settings-expand-sidebar"
@@ -110,7 +118,6 @@ const emit = defineEmits<{
     :show-in-menu-bar="module.showInMenuBar"
     :use-network-proxy="module.useNetworkProxy"
     :workspace-pane-layout="module.workspacePaneLayout"
-    :default-text-view-mode="module.defaultTextViewMode"
     :body-text-formats="module.bodyTextFormats"
     :long-agent-settings="module.longAgentSettings"
     :long-agent-loading="module.longAgentLoading"
@@ -137,7 +144,6 @@ const emit = defineEmits<{
     @update-show-in-menu-bar="emit('updateShowInMenuBar', $event)"
     @update-use-network-proxy="emit('updateUseNetworkProxy', $event)"
     @update-workspace-pane-layout="emit('updateWorkspacePaneLayout', $event)"
-    @update-default-text-view-mode="emit('updateDefaultTextViewMode', $event)"
     @update-body-text-format="emit('updateBodyTextFormat', $event)"
     @retry-long-agents="emit('retryLongAgents')"
     @save-long-agents="emit('saveLongAgents', $event)"

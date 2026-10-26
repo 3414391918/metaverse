@@ -8,7 +8,9 @@ import tseslint from "typescript-eslint";
 const sourceFiles = ["**/*.{js,mjs,cjs,ts,vue}"];
 const nodeFiles = [
   "*.{js,mjs,cjs,ts}",
+  "integrations/harness/plugin/index.js",
   "tools/**/*.{js,mjs,cjs,ts}",
+  "apps/harness/**/*.mjs",
   "toolkit/**/*.{js,mjs,cjs,ts}",
   "packages/**/*.{js,mjs,cjs,ts}",
   "apps/desktop/src/main/**/*.{js,mjs,cjs,ts}",
@@ -74,7 +76,11 @@ export default defineConfig(
     }
   },
   {
-    files: ["apps/desktop/src/renderer/**/*.{js,ts,vue}"],
+    files: [
+      "apps/desktop/src/renderer/**/*.{js,ts,vue}",
+      "integrations/harness/plugin/client.js",
+      "integrations/harness/plugin/plugin-page.js"
+    ],
     languageOptions: {
       globals: globals.browser
     }

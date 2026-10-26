@@ -110,3 +110,7 @@ export const StartupAlertDialog = lazyFeature((features) =>
 export const WindowMenuBar = lazyFeature((features) =>
   features.loadWindowMenuBar()
 );
+
+export const AssistantSurface = lazyFeature((features) =>
+  features.loadAssistantSurface()
+);

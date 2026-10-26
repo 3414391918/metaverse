@@ -354,3 +354,5 @@ export type {
   LongDeleteChapterVideoResult,
   LongCopyChapterVideoResult
 } from "./long-chapter-video";
+
+export type { AssistantConnection, AssistantApi } from "./assistant";

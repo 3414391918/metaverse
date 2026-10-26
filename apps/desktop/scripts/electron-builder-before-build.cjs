@@ -6,6 +6,11 @@ exports.beforeBuild = async function beforeBuild(context) {
     context.platform.nodeName,
     context.arch
   );
+  const { stageHarness } = await import("../../../tools/build-harness.mjs");
+  await stageHarness({
+    platform: context.platform.nodeName,
+    arch: context.arch
+  });
   // Other runtime dependencies are bundled; avoid copying the pnpm tree into ASAR.
   return false;
 };

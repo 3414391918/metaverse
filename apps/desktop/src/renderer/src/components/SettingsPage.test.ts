@@ -5,7 +5,6 @@ import featureModulesSource from "./WorkspaceFeatureModules.vue?raw";
 import featureHostCoordinatorSource from "../composables/useWorkspaceFeatureHostCoordinator.ts?raw";
 import featureHostModuleSource from "../composables/workspaceFeatureHostModule.ts?raw";
 import settingsFeatureModuleSource from "../composables/settingsFeatureModule.ts?raw";
-import bodyTextSource from "./BodyTextSettingsPanel.vue?raw";
 import generalPanelSource from "./GeneralSettingsPanel.vue?raw";
 import fontSource from "./AppearanceFontSettings.vue?raw";
 import appearancePanelSource from "./AppearanceSettingsPanel.vue?raw";
@@ -77,21 +76,19 @@ describe("SettingsPage", () => {
     expect(generalPanelSource).not.toContain("目录｜智能体｜文本内容");
   });
 
-  it("offers a persisted default text view mode with both choices", () => {
+  it("keeps novel formatting in general settings without a text-mode setting", () => {
+    expect(source).not.toContain('id: "body-text"');
+    expect(source).not.toContain("BodyTextSettingsPanel");
     expect(generalPanelSource).not.toContain("默认文本模式");
-    expectSourceToContain(bodyTextSource, "<strong>默认文本模式</strong>");
-    expect(bodyTextSource).toContain('{ value: "edit", label: "编辑" }');
-    expect(bodyTextSource).toContain('{ value: "preview", label: "预览" }');
-    expect(bodyTextSource).toContain(':model-value="defaultTextViewMode"');
-    expectSourceToContain(bodyTextSource, "emit('updateDefaultTextViewMode'");
+    expectSourceToContain(
+      generalPanelSource,
+      "<strong>小说正文格式规范</strong>"
+    );
+    expect(generalPanelSource).toContain(':model-value="bodyTextFormats.long"');
+    expectSourceToContain(generalPanelSource, "emit('updateBodyTextFormat'");
+    expect(source).toContain(':body-text-formats="bodyTextFormats"');
     expect(featureModulesSource).toContain(
-      ':default-text-view-mode="module.defaultTextViewMode"'
-    );
-    expect(featureHostSource).toContain(
-      "settingsStore.generalSettings.defaultTextViewMode"
-    );
-    expect(appSource).toContain(
-      '@update-default-text-view-mode="updateDefaultTextViewMode"'
+      ':body-text-formats="module.bodyTextFormats"'
     );
   });
 

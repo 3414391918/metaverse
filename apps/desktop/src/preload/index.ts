@@ -1,3 +1,4 @@
+import { assistantApi } from "./assistant-api";
 import {
   SystemHealthPayloadSchema,
   UPDATE_STATE_EVENT_CHANNEL,
@@ -111,6 +112,7 @@ function removedModelFeature(): Promise<never> {
 }
 const api: DeepWriteApi = {
   resourceManager: resourceManagerApi,
+  assistant: assistantApi,
   fishAudio,
   toolLibrary,
   textContextMenu,

@@ -50,7 +50,7 @@ describe("packaged Core storage worker inventory", () => {
         ],
         (file) => sources.get(file) ?? ""
       ).checkedModules
-    ).toBe(8);
+    ).toBe(11);
   });
   it("ignores documentation import examples while checking executable module edges", () => {
     expect(
@@ -58,6 +58,6 @@ describe("packaged Core storage worker inventory", () => {
         REQUIRED_RUNTIME_FILES,
         () => "/** @param {import('./request').default} value */"
       ).checkedModules
-    ).toBe(6);
+    ).toBe(9);
   });
 });

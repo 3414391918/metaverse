@@ -1,3 +1,4 @@
+import { handleAssistantCommands } from "./assistant-commands";
 import { handleChatAssistantConfigCommands } from "./chat-assistant-config-commands";
 import { handleConversationExportCommands } from "./conversation-export-commands";
 import {
@@ -60,6 +61,7 @@ export async function dispatchCommand(
 
   const result =
     ctx.rendererStateFlush.handleCommand(ctx.senderWebContentsId, command) ??
+    (await handleAssistantCommands(ctx, command)) ??
     (await handleResourceManagerCommands(ctx, command)) ??
     (await handleToolLibraryCommands(ctx, command)) ??
     (await handleFishAudioCommands(ctx, command)) ??

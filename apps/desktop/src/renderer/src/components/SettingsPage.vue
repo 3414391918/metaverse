@@ -10,12 +10,11 @@ import {
   type LibraryAgentSettingsInput,
   type LongAgentSettings,
   type LongAgentSettingsInput,
-  type TextViewMode,
   type WorkspacePaneLayout
 } from "@deepwrite/contracts";
+import { AssistantSurface } from "./lazyAppComponents";
 import AppIcon from "./AppIcon.vue";
 import AppearanceSettingsPanel from "./AppearanceSettingsPanel.vue";
-import BodyTextSettingsPanel from "./BodyTextSettingsPanel.vue";
 import GeneralSettingsPanel from "./GeneralSettingsPanel.vue";
 import FishAudioSettingsPanel from "./FishAudioSettingsPanel.vue";
 import WorkspaceDirectoryFeature from "./WorkspaceDirectoryFeature.vue";
@@ -53,7 +52,6 @@ const props = defineProps<{
   showInMenuBar: boolean;
   useNetworkProxy: boolean;
   workspacePaneLayout: WorkspacePaneLayout;
-  defaultTextViewMode: TextViewMode;
   bodyTextFormats: BodyTextFormats;
   longAgentSettings: LongAgentSettings | null;
   longAgentLoading: boolean;
@@ -79,7 +77,6 @@ const emit = defineEmits<{
   updateShowInMenuBar: [enabled: boolean];
   updateUseNetworkProxy: [enabled: boolean];
   updateWorkspacePaneLayout: [layout: WorkspacePaneLayout];
-  updateDefaultTextViewMode: [mode: TextViewMode];
   updateBodyTextFormat: [change: BodyTextFormatChange];
   retryLongAgents: [];
   saveLongAgents: [settings: LongAgentSettingsInput];
@@ -98,8 +95,16 @@ const sections: SettingsSection[] = [
     categories: [
       { id: "general", label: "常规", icon: "settings" },
       { id: "directory", label: "工作目录", icon: "directory" },
-      { id: "body-text", label: "正文文本", icon: "wand" },
       { id: "appearance", label: "外观", icon: "sparkles" }
+    ]
+  },
+  {
+    id: "agent",
+    label: "智能体",
+    categories: [
+      { id: "agent-models", label: "模型", icon: "model" },
+      { id: "agent-plugins", label: "插件", icon: "archive" },
+      { id: "agent-presets", label: "预设", icon: "brain" }
     ]
   },
   {
@@ -184,12 +189,27 @@ function selectCategory(id: string): void {
       </nav>
     </aside>
 
-    <main class="settings-content">
+    <main
+      class="settings-content"
+      :class="{ 'agent-settings-content': activeCategory.startsWith('agent-') }"
+    >
       <div class="settings-content-inner">
-        <h1 class="settings-title">{{ activeLabel }}</h1>
+        <h1 v-if="!activeCategory.startsWith('agent-')" class="settings-title">
+          {{ activeLabel }}
+        </h1>
 
+        <AssistantSurface
+          v-if="activeCategory.startsWith('agent-')"
+          :screen="
+            activeCategory === 'agent-models'
+              ? 'models'
+              : activeCategory === 'agent-plugins'
+                ? 'plugins'
+                : 'presets'
+          "
+        />
         <GeneralSettingsPanel
-          v-if="activeCategory === 'general'"
+          v-else-if="activeCategory === 'general'"
           :permission-mode="permissionMode"
           :auto-approve-cross-stage-operations="autoApproveCrossStageOperations"
           :auto-save-enabled="autoSaveEnabled"
@@ -198,6 +218,7 @@ function selectCategory(id: string): void {
           :show-in-menu-bar="showInMenuBar"
           :use-network-proxy="useNetworkProxy"
           :workspace-pane-layout="workspacePaneLayout"
+          :body-text-formats="bodyTextFormats"
           @update-permission-mode="emit('updatePermissionMode', $event)"
           @update-auto-approve-cross-stage-operations="
             emit('updateAutoApproveCrossStageOperations', $event)
@@ -210,6 +231,7 @@ function selectCategory(id: string): void {
           @update-workspace-pane-layout="
             emit('updateWorkspacePaneLayout', $event)
           "
+          @update-body-text-format="emit('updateBodyTextFormat', $event)"
         />
 
         <WorkspaceDirectoryFeature
@@ -221,16 +243,6 @@ function selectCategory(id: string): void {
           @choose="emit('chooseWorkspaceDirectory')"
           @restore="emit('restoreWorkspaceDirectory')"
           @migrate="emit('migrateWorkspaceDirectory')"
-        />
-
-        <BodyTextSettingsPanel
-          v-else-if="activeCategory === 'body-text'"
-          :default-text-view-mode="defaultTextViewMode"
-          :body-text-formats="bodyTextFormats"
-          @update-default-text-view-mode="
-            emit('updateDefaultTextViewMode', $event)
-          "
-          @update-body-text-format="emit('updateBodyTextFormat', $event)"
         />
 
         <AppearanceSettingsPanel v-else-if="activeCategory === 'appearance'" />
@@ -250,3 +262,26 @@ function selectCategory(id: string): void {
 </template>
 
 <style scoped src="./settings-page.css"></style>
+
+<style scoped>
+.agent-settings-content {
+  padding: 0;
+  overflow: hidden;
+}
+.agent-settings-content .settings-content-inner {
+  max-width: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px 0;
+  box-sizing: border-box;
+}
+.agent-settings-content .settings-title {
+  flex: none;
+  margin-bottom: 14px;
+}
+.agent-settings-content .assistant-surface {
+  flex: 1;
+  min-height: 0;
+}
+</style>

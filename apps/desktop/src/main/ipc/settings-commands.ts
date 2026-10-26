@@ -1,3 +1,4 @@
+import { stopAssistant } from "../assistant-service";
 import {
   GeneralSettingsSnapshotSchema,
   LibraryAgentSettingsSchema,
@@ -39,10 +40,13 @@ export async function handleSettingsCommands(
   }
   if (command.type === "workspaceDirectory.choose") {
     try {
+      const previous = await ctx.requireWorkspaceDirectoryStore().list();
+      const selected = await ctx.chooseWorkspaceDirectory();
+      if (selected && selected.path !== previous.path) await stopAssistant();
       return {
         status: "accepted",
         requestId: command.id,
-        payload: await ctx.chooseWorkspaceDirectory()
+        payload: selected
       };
     } catch (error: unknown) {
       return {
@@ -63,6 +67,13 @@ export async function handleSettingsCommands(
   ) {
     try {
       const store = ctx.requireWorkspaceDirectoryStore();
+      const current = await store.list();
+      if (
+        command.type === "workspaceDirectory.restore"
+          ? current.previousPath
+          : current.migrationSourcePath
+      )
+        await stopAssistant();
       return {
         status: "accepted",
         requestId: command.id,

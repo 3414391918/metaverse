@@ -198,7 +198,7 @@ async function confirmDelete(): Promise<void> {
       <div class="font-setting-row">
         <span class="font-setting-copy">
           <strong>本地字体</strong>
-          <small>上传 TTF 或 OTF 文件，字体会保存到 DeepWrite 本机目录</small>
+          <small>上传 TTF 或 OTF 文件</small>
         </span>
         <button
           class="font-upload-button"

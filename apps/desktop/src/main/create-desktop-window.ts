@@ -1,3 +1,4 @@
+import { isAssistantGuestUrl } from "./assistant-service";
 import { installWindowFrame, usesCustomWindowFrame } from "./window-frame";
 import { BrowserWindow, shell } from "electron";
 import { join } from "node:path";
@@ -59,11 +60,12 @@ export function createDesktopWindow(
       webviewTag: true
     }
   });
+  const assistantGuests = new Set<number>();
   installTextContextMenu(window);
   installWindowFrame(window);
   window.webContents.session.setPermissionRequestHandler(
     (sender, permission, callback, details) => {
-      if (sender !== window.webContents) {
+      if (sender !== window.webContents && !assistantGuests.has(sender.id)) {
         callback(false);
         return;
       }
@@ -92,9 +94,12 @@ export function createDesktopWindow(
   window.webContents.on(
     "will-attach-webview",
     (event, webPreferences, params) => {
+      const assistant =
+        typeof params.src === "string" && isAssistantGuestUrl(params.src, true);
       if (
         typeof params.src !== "string" ||
-        !isAllowedZhuqueDetectionUrl(params.src)
+        (assistant && params.partition !== "persist:metaverse-assistant") ||
+        (!assistant && !isAllowedZhuqueDetectionUrl(params.src))
       ) {
         event.preventDefault();
         return;
@@ -103,10 +108,38 @@ export function createDesktopWindow(
       webPreferences.nodeIntegration = false;
       webPreferences.contextIsolation = true;
       webPreferences.sandbox = true;
+      webPreferences.webSecurity = true;
+      if (assistant)
+        webPreferences.preload = join(
+          __dirname,
+          "../preload/assistant-guest.js"
+        );
     }
   );
 
   window.webContents.on("did-attach-webview", (_event, guestContents) => {
+    guestContents.on("dom-ready", () => {
+      if (!isAssistantGuestUrl(guestContents.getURL())) return;
+      assistantGuests.add(guestContents.id);
+      guestContents.session.setPermissionRequestHandler(
+        (sender, permission, callback, details) => {
+          const trusted =
+            assistantGuests.has(sender.id) &&
+            isAssistantGuestUrl(details.requestingUrl);
+          callback(
+            trusted &&
+              (permission === "clipboard-read" ||
+                permission === "clipboard-sanitized-write" ||
+                (permission === "media" &&
+                  "mediaTypes" in details &&
+                  details.mediaTypes.includes("audio")))
+          );
+        }
+      );
+    });
+    guestContents.once("destroyed", () =>
+      assistantGuests.delete(guestContents.id)
+    );
     guestContents.setWindowOpenHandler(({ url }) => {
       if (isSafeExternalUrl(url)) {
         void shell.openExternal(url);
@@ -114,7 +147,7 @@ export function createDesktopWindow(
       return { action: "deny" };
     });
     guestContents.on("will-navigate", (event, url) => {
-      if (isAllowedZhuqueDetectionUrl(url)) return;
+      if (isAllowedZhuqueDetectionUrl(url) || isAssistantGuestUrl(url)) return;
       event.preventDefault();
       if (isSafeExternalUrl(url)) {
         void shell.openExternal(url);

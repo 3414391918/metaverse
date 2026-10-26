@@ -33,7 +33,6 @@ function bindDesktopShell(element: Element | ComponentPublicInstance | null) {
     @update-show-in-menu-bar="shell.updateShowInMenuBar"
     @update-use-network-proxy="shell.updateUseNetworkProxy"
     @update-workspace-pane-layout="shell.updateWorkspacePaneLayout"
-    @update-default-text-view-mode="shell.updateDefaultTextViewMode"
     @update-body-text-format="shell.updateBodyTextFormat"
     @retry-long-agents="shell.loadLongAgentSettings"
     @save-long-agents="shell.saveLongAgentSettings"

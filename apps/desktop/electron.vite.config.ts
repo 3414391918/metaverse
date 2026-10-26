@@ -75,7 +75,10 @@ export default defineConfig({
     build: {
       rollupOptions: {
         external: ["electron", ...Object.keys(dependencies)],
-        input: { index: resolve(appRoot, "src/preload/index.ts") },
+        input: {
+          index: resolve(appRoot, "src/preload/index.ts"),
+          "assistant-guest": resolve(appRoot, "src/preload/assistant-guest.ts")
+        },
         output: { format: "cjs", entryFileNames: "[name].js" }
       }
     }

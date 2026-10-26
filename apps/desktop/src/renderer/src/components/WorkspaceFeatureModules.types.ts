@@ -4,7 +4,6 @@ import type {
   GeneralPermissionMode,
   LibraryAgentSettings,
   LongAgentSettings,
-  TextViewMode,
   WorkspacePaneLayout
 } from "@deepwrite/contracts";
 
@@ -19,7 +18,6 @@ export interface SettingsFeatureModule {
   showInMenuBar: boolean;
   useNetworkProxy: boolean;
   workspacePaneLayout: WorkspacePaneLayout;
-  defaultTextViewMode: TextViewMode;
   bodyTextFormats: BodyTextFormats;
   longAgentSettings: LongAgentSettings | null;
   longAgentLoading: boolean;
@@ -36,6 +34,7 @@ export interface SettingsFeatureModule {
 }
 
 export type WorkspaceFeatureModule =
+  | { kind: "assistant" }
   | { kind: "resources" }
   | { kind: "tools" }
   | { kind: "voice-manager" }

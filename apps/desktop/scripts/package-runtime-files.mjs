@@ -10,6 +10,11 @@ export const REQUIRED_RUNTIME_FILES = [
   "out/main/utilities/tool-entry.js",
   "out/main/utilities/conversation-storage/worker-entry.js",
   "out/preload/index.js",
+  "out/preload/assistant-guest.js",
+  "out/harness/runtime/launch.mjs",
+  "out/harness/node/node",
+  "out/harness/plugin/index.js",
+  "out/harness/plugin/client.js",
   "out/renderer/index.html",
   "out/renderer/app-icon.png"
 ];
@@ -52,7 +57,13 @@ export function validateRuntimeFiles(files, read) {
     files.map((file) => file.replace(/^[/\\]+/, "").replaceAll("\\", "/"))
   );
   for (const file of REQUIRED_RUNTIME_FILES)
-    if (!entries.has(file))
+    if (
+      !entries.has(file) &&
+      !(
+        file === "out/harness/node/node" &&
+        entries.has("out/harness/node/node.exe")
+      )
+    )
       throw new Error(`Packaged runtime file is missing: ${file}`);
   const checked = new Set();
   const pending = REQUIRED_RUNTIME_FILES.filter((file) => file.endsWith(".js"));
