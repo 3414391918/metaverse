@@ -3,21 +3,13 @@ import type {
   CatalogIndexSnapshot,
   LibraryAgentSettings
 } from "@deepwrite/contracts";
-import { computed, ref, shallowRef } from "vue";
+import { computed, nextTick, ref, shallowRef } from "vue";
 import { describe, expect, it, vi } from "vitest";
 import type { AgentConversationController } from "./useAgentConversation";
 import { useLibraryConversationCoordinator } from "./useLibraryConversationCoordinator";
 import type { LibraryConversationCoordinatorOptions } from "./libraryConversationContext";
 import type { ChatMessage } from "../types/conversation";
 import type { WorkspaceDocument } from "../types/workspace";
-
-function deferred<Value>() {
-  let resolve!: (value: Value) => void;
-  const promise = new Promise<Value>((resolvePromise) => {
-    resolve = resolvePromise;
-  });
-  return { promise, resolve };
-}
 
 function workspaceDocument(
   patch: Partial<WorkspaceDocument> = {}
@@ -40,7 +32,6 @@ function controllerFixture() {
   const sessionId = ref("session-one");
   const draft = ref("请继续写");
   const isBusy = ref(false);
-  const canRewriteHistory = ref(true);
   const messages = ref<ChatMessage[]>([
     {
       id: "user-history-one",
@@ -52,15 +43,6 @@ function controllerFixture() {
   ]);
   const conversationError = ref<string | null>(null);
   const webSearchEnabled = ref(false);
-  const sendMessage = vi.fn(async () => undefined);
-  const resendMessage = vi.fn(async (request: { messageId: string }) => {
-    const index = messages.value.findIndex(
-      (message) => message.id === request.messageId
-    );
-    if (index < 0) return false;
-    messages.value.splice(index);
-    return true;
-  });
   const newConversation = vi.fn(() => {
     sessionId.value = "session-new";
     draft.value = "";
@@ -70,20 +52,15 @@ function controllerFixture() {
     sessionId.value = nextSessionId;
     return true;
   });
-  const stopGeneration = vi.fn(async () => true);
   const controller = {
     sessionId,
     draft,
     messages,
     isBusy,
-    canRewriteHistory,
     conversationError,
     webSearchEnabled,
-    sendMessage,
-    resendMessage,
     newConversation,
     selectConversation,
-    stopGeneration,
     useSuggestion: vi.fn((value: string) => {
       draft.value = value;
     }),
@@ -93,21 +70,19 @@ function controllerFixture() {
       webSearchEnabled.value = enabled;
     }),
     selectTemperature: vi.fn(),
-    selectApprovalMode: vi.fn()
+    selectApprovalMode: vi.fn(),
+    selectAgentTeamMode: vi.fn()
   } as unknown as AgentConversationController;
   return {
     controller,
     conversationError,
-    canRewriteHistory,
     draft,
     isBusy,
     newConversation,
     messages,
-    resendMessage,
     selectConversation,
-    sendMessage,
     sessionId,
-    stopGeneration
+    webSearchEnabled
   };
 }
 
@@ -154,13 +129,11 @@ function createHarness(
       }
     ]
   });
-  const hydratedCatalogSnapshot = vi.fn(() => snapshot);
   const notifications = {
     info: vi.fn(),
     warning: vi.fn(),
     error: vi.fn()
   };
-  const schedule = vi.fn();
   const showConversation = vi.fn();
   const clearEditorSelectionReferences = vi.fn();
   const options: LibraryConversationCoordinatorOptions = {
@@ -180,7 +153,7 @@ function createHarness(
       clearEditorSelectionReferences,
       contextDocuments: vi.fn(() => catalogDocuments.value),
       ensureDocumentsLoaded,
-      hydratedCatalogSnapshot
+      hydratedCatalogSnapshot: vi.fn(() => snapshot)
     },
     catalog: {
       snapshot: shallowRef<CatalogIndexSnapshot | null>(null)
@@ -194,7 +167,7 @@ function createHarness(
       acceptingDocumentIds: ref(new Set<string>()),
       acceptingWorkspaceIds: ref(new Set<string>()),
       hasQueued: vi.fn(() => false),
-      schedule,
+      schedule: vi.fn(),
       resumeRecovered: vi.fn()
     },
     settings: {
@@ -213,179 +186,71 @@ function createHarness(
     conversation,
     coordinator,
     ensureDocumentsLoaded,
-    hydratedCatalogSnapshot,
     notifications,
     options,
-    schedule,
     selectedResourceId,
     showConversation
   };
 }
 
 describe("useLibraryConversationCoordinator", () => {
-  it("hydrates the selected library and its peer documents before library management", async () => {
+  it("renders the conversation context from the active document without hydrating the catalog", () => {
     const test = createHarness();
-    const material = workspaceDocument({
-      id: "material-entry",
-      domain: "material"
-    });
-    const skill = workspaceDocument({ id: "skill-entry", domain: "skill" });
-    vi.mocked(test.options.resource.contextDocuments).mockReturnValue([
-      test.activeDocument.value,
-      material,
-      skill
-    ]);
-    await test.coordinator.sendMessage();
-    expect(test.ensureDocumentsLoaded).toHaveBeenCalledWith([
-      test.activeDocument.value,
-      material,
-      skill
-    ]);
-    expect(test.conversation.sendMessage).toHaveBeenCalledOnce();
+    const context = test.coordinator.conversationContext.value;
+    expect(context.contextTitle).toBe("正文");
+    expect(context.bookTitle).toBe("作品");
+    expect(context.runtimeAvailable).toBe(false);
+    expect(context.agentLabel).toBe("历史对话");
+    expect(test.ensureDocumentsLoaded).not.toHaveBeenCalled();
+    test.coordinator.dispose();
   });
-  it("keeps full Catalog context construction on the send cold path", async () => {
+
+  it("exposes only history navigation: no send, stop, or rewrite ports", () => {
     const test = createHarness();
-
-    expect(test.coordinator.conversationContext.value.contextTitle).toBe(
-      "正文"
-    );
-    expect(test.hydratedCatalogSnapshot).not.toHaveBeenCalled();
-
-    await test.coordinator.sendMessage();
-
-    expect(test.hydratedCatalogSnapshot).toHaveBeenCalledOnce();
-    expect(test.conversation.sendMessage).toHaveBeenCalledOnce();
+    const coordinator = test.coordinator as unknown as Record<string, unknown>;
+    expect(coordinator.sendMessage).toBeUndefined();
+    expect(coordinator.resendMessage).toBeUndefined();
+    expect(coordinator.stopGeneration).toBeUndefined();
+    expect(coordinator.canRewriteHistory).toBeUndefined();
+    expect(coordinator.sendPreflightPending).toBeUndefined();
+    expect(typeof coordinator.selectConversation).toBe("function");
+    expect(typeof coordinator.newConversation).toBe("function");
+    test.coordinator.dispose();
   });
 
-  it("rejects a second send while the first preflight is pending", async () => {
-    const gate = deferred<boolean>();
+  it("selects stored history, keeps the draft, and clears editor references", () => {
     const test = createHarness();
-    test.ensureDocumentsLoaded.mockImplementation(() => gate.promise);
-
-    const first = test.coordinator.sendMessage();
-    await test.coordinator.sendMessage();
-
-    expect(test.ensureDocumentsLoaded).toHaveBeenCalledOnce();
-    expect(test.notifications.info).toHaveBeenCalledWith(
-      "正在准备上一条消息，请稍候。"
-    );
-    gate.resolve(true);
-    await first;
-    expect(test.conversation.sendMessage).toHaveBeenCalledOnce();
-  });
-
-  it("reuses the current workspace preflight when resending an edited history question", async () => {
-    const test = createHarness();
-    test.conversation.draft.value = "保留主输入草稿";
-
-    expect(test.coordinator.conversationContext.value.canRewriteHistory).toBe(
-      true
-    );
-    const result = await test.coordinator.resendMessage({
-      messageId: "user-history-one",
-      content: "修改后的历史问题"
-    });
-
-    expect(result).toBe(true);
-    expect(test.ensureDocumentsLoaded).toHaveBeenCalledOnce();
-    expect(test.hydratedCatalogSnapshot).toHaveBeenCalledOnce();
-    expect(test.conversation.resendMessage).toHaveBeenCalledWith(
-      {
-        messageId: "user-history-one",
-        content: "修改后的历史问题"
-      },
-      test.activeDocument.value,
-      [test.activeDocument.value],
-      expect.objectContaining({
-        libraryWorkspace: expect.objectContaining({ libraryId: "library-one" })
-      })
-    );
-    expect(test.conversation.sendMessage).not.toHaveBeenCalled();
-    expect(test.conversation.draft.value).toBe("保留主输入草稿");
-    expect(test.schedule).toHaveBeenCalledOnce();
-  });
-
-  it("keeps the editor branch when rewrite preflight fails or saves are queued", async () => {
-    const preflightFailure = createHarness();
-    preflightFailure.ensureDocumentsLoaded.mockResolvedValue(false);
-
-    await expect(
-      preflightFailure.coordinator.resendMessage({
-        messageId: "user-history-one",
-        content: "预检失败"
-      })
-    ).resolves.toBe(false);
-    expect(preflightFailure.conversation.resendMessage).not.toHaveBeenCalled();
-    expect(
-      preflightFailure.conversation.messages.value.map((message) => message.id)
-    ).toContain("user-history-one");
-
-    const queuedSave = createHarness();
-    vi.mocked(queuedSave.options.edits.hasQueued).mockReturnValue(true);
-    await expect(
-      queuedSave.coordinator.resendMessage({
-        messageId: "user-history-one",
-        content: "保存队列结束后再发送"
-      })
-    ).resolves.toBe(false);
-    expect(queuedSave.ensureDocumentsLoaded).not.toHaveBeenCalled();
-    expect(queuedSave.notifications.info).toHaveBeenCalledWith(
-      "请先等待当前回复、审批和修改保存全部完成。"
-    );
-  });
-
-  it("cancels the captured target when the resource changes during preflight", async () => {
-    const gate = deferred<boolean>();
-    const test = createHarness();
-    test.ensureDocumentsLoaded.mockImplementation(() => gate.promise);
-
-    const sending = test.coordinator.sendMessage();
-    test.selectedResourceId.value = "document-two";
-    gate.resolve(true);
-    await sending;
-
-    expect(test.conversation.sendMessage).not.toHaveBeenCalled();
-    expect(test.notifications.info).toHaveBeenCalledWith(
-      "当前资源、会话或输入内容已切换，本次发送已取消。"
-    );
-  });
-
-  it("cancels the captured target when the session or draft changes", async () => {
-    const sessionGate = deferred<boolean>();
-    const sessionTest = createHarness();
-    sessionTest.ensureDocumentsLoaded.mockImplementation(
-      () => sessionGate.promise
-    );
-    const sessionSend = sessionTest.coordinator.sendMessage();
-    sessionTest.conversation.sessionId.value = "session-two";
-    sessionGate.resolve(true);
-    await sessionSend;
-    expect(sessionTest.conversation.sendMessage).not.toHaveBeenCalled();
-
-    const draftGate = deferred<boolean>();
-    const draftTest = createHarness();
-    draftTest.ensureDocumentsLoaded.mockImplementation(() => draftGate.promise);
-    const draftSend = draftTest.coordinator.sendMessage();
-    draftTest.conversation.draft.value = "新的输入";
-    draftGate.resolve(true);
-    await draftSend;
-    expect(draftTest.conversation.sendMessage).not.toHaveBeenCalled();
-  });
-
-  it("invalidates a pending send before selecting another conversation", async () => {
-    const gate = deferred<boolean>();
-    const test = createHarness();
-    test.ensureDocumentsLoaded.mockImplementation(() => gate.promise);
-    const sending = test.coordinator.sendMessage();
-
     test.coordinator.selectConversation("session-two");
-    gate.resolve(true);
-    await sending;
 
     expect(test.conversation.selectConversation).toHaveBeenCalledWith(
       "session-two"
     );
-    expect(test.conversation.sendMessage).not.toHaveBeenCalled();
+    expect(test.conversation.sessionId.value).toBe("session-two");
+    expect(test.conversation.draft.value).toBe("请继续写");
+    expect(test.clearEditorSelectionReferences).toHaveBeenCalledOnce();
+    test.coordinator.dispose();
+  });
+
+  it("warns when switching history while the conversation is busy", () => {
+    const test = createHarness();
+    test.conversation.isBusy.value = true;
+    test.coordinator.selectConversation("session-two");
+
+    expect(test.conversation.sessionId.value).toBe("session-one");
+    expect(test.notifications.warning).toHaveBeenCalledWith(
+      "请等待历史保存完成后再切换对话"
+    );
+    test.coordinator.dispose();
+  });
+
+  it("starts a new conversation through the active controller", () => {
+    const test = createHarness();
+    test.coordinator.newConversation();
+
+    expect(test.conversation.newConversation).toHaveBeenCalledOnce();
+    expect(test.clearEditorSelectionReferences).toHaveBeenCalledOnce();
+    expect(test.showConversation).toHaveBeenCalledOnce();
+    test.coordinator.dispose();
   });
 
   it("blocks a new library conversation while the controller is busy", () => {
@@ -395,70 +260,69 @@ describe("useLibraryConversationCoordinator", () => {
     test.coordinator.newConversation();
 
     expect(test.conversation.newConversation).not.toHaveBeenCalled();
-    expect(test.notifications.warning).toHaveBeenCalledWith(
-      "请先停止当前回复，再新建对话。"
-    );
     expect(test.showConversation).not.toHaveBeenCalled();
+    test.coordinator.dispose();
   });
 
-  it("disposal invalidates and drains an active preflight without publishing", async () => {
-    const gate = deferred<boolean>();
+  it("delegates preference selection to the active conversation", () => {
     const test = createHarness();
-    test.ensureDocumentsLoaded.mockImplementation(() => gate.promise);
-    const sending = test.coordinator.sendMessage();
-    const disposing = test.coordinator.dispose();
+    test.coordinator.selectModel("model-two");
+    test.coordinator.selectThinking("high");
+    test.coordinator.selectWebSearch(true);
+    test.coordinator.selectTemperature(0.2);
+    test.coordinator.selectApprovalMode("auto-approve");
 
-    gate.resolve(true);
-    await Promise.all([sending, disposing]);
-
-    expect(test.conversation.sendMessage).not.toHaveBeenCalled();
-    expect(test.notifications.info).not.toHaveBeenCalledWith(
-      "当前资源、会话或输入内容已切换，本次发送已取消。"
+    expect(test.conversation.controller.selectModel).toHaveBeenCalledWith(
+      "model-two"
     );
-  });
-
-  it("stops only the captured busy controller before draining disposal", async () => {
-    const gate = deferred<void>();
-    const test = createHarness();
-    const otherConversation = controllerFixture();
-    vi.mocked(test.options.runtime.conversationForKey).mockImplementation(
-      (key) =>
-        key.includes("document-two")
-          ? otherConversation.controller
-          : test.conversation.controller
-    );
-    test.conversation.sendMessage.mockImplementation(async () => {
-      test.conversation.isBusy.value = true;
-      await gate.promise;
-      test.conversation.isBusy.value = false;
-    });
-    test.conversation.stopGeneration.mockImplementation(async () => {
-      test.conversation.isBusy.value = false;
-      gate.resolve();
-      return true;
-    });
-
-    const sending = test.coordinator.sendMessage();
-    await vi.waitFor(() =>
-      expect(test.conversation.sendMessage).toHaveBeenCalledOnce()
-    );
-    test.activeDocument.value = workspaceDocument({ id: "document-two" });
-    test.selectedResourceId.value = "document-two";
-    test.selectedResourceId.value = "document-two";
-
-    await test.coordinator.dispose();
-    await sending;
-
-    expect(test.conversation.stopGeneration).toHaveBeenCalledOnce();
-    expect(otherConversation.stopGeneration).not.toHaveBeenCalled();
-    expect(test.coordinator.sendPreflightPending.value).toBe(false);
-  });
-
-  it("persists a composer web-search toggle through the session model selection", () => {
-    const test = createHarness();
-    test.conversation.controller.webSearchEnabled.value = true;
     expect(
-      test.options.runtime.synchronizeSessionModelSelection
-    ).toHaveBeenCalledWith(test.conversation.controller);
+      test.conversation.controller.selectThinkingLevel
+    ).toHaveBeenCalledWith("high");
+    expect(test.conversation.webSearchEnabled.value).toBe(true);
+    expect(test.conversation.controller.selectTemperature).toHaveBeenCalledWith(
+      0.2
+    );
+    expect(
+      test.conversation.controller.selectApprovalMode
+    ).toHaveBeenCalledWith("auto-approve");
+    expect(test.options.runtime.synchronizeRunPreferences).toHaveBeenCalled();
+    test.coordinator.dispose();
+  });
+
+  it("keeps draft edits and suggestions inside the active conversation", () => {
+    const test = createHarness();
+    test.coordinator.updateDraft("新的草稿");
+    expect(test.conversation.draft.value).toBe("新的草稿");
+
+    test.coordinator.useSuggestion("使用这条建议");
+    expect(test.conversation.draft.value).toBe("使用这条建议");
+    test.coordinator.dispose();
+  });
+
+  it("persists a composer web-search toggle through the session model selection", async () => {
+    const test = createHarness();
+    test.conversation.webSearchEnabled.value = true;
+    await nextTick();
+    const sessionModelSelection = vi.mocked(
+      test.options.runtime
+        .synchronizeSessionModelSelection as unknown as ReturnType<typeof vi.fn>
+    );
+    expect(sessionModelSelection).toHaveBeenCalledWith(
+      test.conversation.controller
+    );
+    test.coordinator.dispose();
+  });
+
+  it("stops preference synchronization after disposal", async () => {
+    const test = createHarness();
+    await test.coordinator.dispose();
+    const sessionModelSelection = vi.mocked(
+      test.options.runtime
+        .synchronizeSessionModelSelection as unknown as ReturnType<typeof vi.fn>
+    );
+    const calls = sessionModelSelection.mock.calls.length;
+    test.conversation.webSearchEnabled.value = false;
+    await nextTick();
+    expect(sessionModelSelection.mock.calls.length).toBe(calls);
   });
 });

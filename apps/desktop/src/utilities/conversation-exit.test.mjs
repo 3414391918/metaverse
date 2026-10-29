@@ -10,13 +10,7 @@ import {
 import { createConversationPersistenceAdapter } from "../renderer/src/utils/conversationPersistence.ts";
 import { conversationHistoryPersistenceKey } from "../renderer/src/utils/conversationPersistenceKeys.ts";
 import { useConversationStore } from "../renderer/src/stores/conversationStore.ts";
-import {
-  createDeferredApi,
-  createEnvelope,
-  document,
-  runtime,
-  useAgentConversation
-} from "../renderer/src/composables/useAgentConversation.test-support.ts";
+import { useAgentConversation } from "../renderer/src/composables/useAgentConversation.test-support.ts";
 
 const cleanups = [];
 afterEach(async () => {
@@ -46,10 +40,11 @@ async function harness() {
     })
   );
   cleanups.push(() => store.dispose());
-  const api = createDeferredApi();
   const key = conversationHistoryPersistenceKey("book:child-close");
   const conversation = useAgentConversation({
-    api: () => api.api,
+    // Execution lives in the external assistant harness: the desktop
+    // controller only loads, displays and persists the conversation.
+    api: () => undefined,
     initialMessages: Array.from({ length: 25 }, (_, index) => [
       {
         id: `user-${index}`,
@@ -73,71 +68,35 @@ async function harness() {
   });
   store.registerController("book:child-close", "general", conversation);
   conversation.draft.value = "建立世界观";
-  const sending = conversation.sendMessage(document);
-  const sessionId = conversation.sessionId.value;
-  const runId = "run-child-close";
-  api.resolveAccepted(0, {
-    sessionId,
-    runId,
-    acceptedAt: new Date().toISOString(),
-    runtime
+  conversation.messages.value.push({
+    id: "late-user",
+    role: "user",
+    content: "关闭前最后一条提问",
+    createdAt: "2026-09-10T00:00:02.000Z"
   });
-  await sending;
-  const child = {
-    sessionId,
-    runId,
-    parentToolCallId: "spawn-child",
-    subagentRunId: "child-close",
-    subagentId: "writer",
-    name: "写手",
-    runtime
+  return {
+    conversation,
+    close: () => close(),
+    directory,
+    key,
+    store
   };
-  conversation.handleEvent(
-    createEnvelope(
-      "subagent.started",
-      {
-        ...child,
-        task: "编写世界观规则"
-      },
-      { id: "child-started", context: { sessionId, runId } }
-    )
-  );
-  conversation.handleEvent(
-    createEnvelope(
-      "subagent.activity",
-      {
-        ...child,
-        activity: { type: "message_delta", delta: "已经生成的世界观规则" }
-      },
-      { id: "child-output", context: { sessionId, runId } }
-    )
-  );
-  return { conversation, api, close: () => close(), directory, key, child };
 }
 
-describe("stopping and closing a delegated conversation", () => {
-  it("settles the parent and its child on abort acknowledgement even if the terminal event is missing", async () => {
+describe("closing and reopening a persisted conversation", () => {
+  it("flushes pending conversation persistence through the close handler", async () => {
     const h = await harness();
-    await h.conversation.stopGeneration();
-    expect(h.api.aborts).toEqual([
-      {
-        sessionId: h.child.sessionId,
-        runId: h.child.runId
-      }
-    ]);
-    expect(h.conversation.isBusy.value).toBe(false);
-    expect(
-      h.conversation.messages.value.at(-1)?.subagentRuns?.[0]
-    ).toMatchObject({
-      status: "stopped",
-      output: "已经生成的世界观规则"
-    });
+    expect(h.conversation.messages.value).toHaveLength(51);
+    await h.close();
+    const saved = await new RendererStateStore(h.directory).load(h.key);
+    expect(saved.conversations).toHaveLength(1);
+    expect(saved.conversations[0].messages).toHaveLength(51);
+    expect(saved.conversations[0].draft).toBe("建立世界观");
   });
 
-  it("stops a running child and reloads the complete conversation from disk after a normal exit", async () => {
+  it("reloads the complete conversation from disk after a normal exit", async () => {
     const h = await harness();
     await h.close();
-    expect(h.api.aborts).toHaveLength(1);
     const restored = useAgentConversation({
       api: () => undefined,
       initialPersistenceSnapshot: await new RendererStateStore(
@@ -145,13 +104,10 @@ describe("stopping and closing a delegated conversation", () => {
       ).load(h.key)
     });
     cleanups.push(async () => restored.dispose());
-    expect(restored.messages.value).toHaveLength(52);
+    expect(restored.messages.value).toHaveLength(51);
     expect(restored.messages.value[0]?.content).toBe("第 1 轮问题");
     expect(restored.messages.value[49]?.content).toBe("第 25 轮回复");
-    expect(restored.messages.value[50]?.content).toBe("建立世界观");
-    expect(restored.messages.value.at(-1)?.subagentRuns?.[0]).toMatchObject({
-      status: "stopped",
-      output: "已经生成的世界观规则"
-    });
+    expect(restored.messages.value[50]?.content).toBe("关闭前最后一条提问");
+    expect(restored.draft.value).toBe("建立世界观");
   });
 });

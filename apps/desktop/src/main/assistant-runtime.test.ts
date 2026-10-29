@@ -24,7 +24,11 @@ afterEach(async () => {
     roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))
   );
 });
-async function fixture(silent = false) {
+async function fixture(
+  silent = false,
+  proxyResolver?: () => Promise<string>,
+  environment?: NodeJS.ProcessEnv
+) {
   const root = await mkdtemp(join(tmpdir(), "metaverse-assistant-"));
   roots.push(root);
   const cli = join(root, "cli.mjs");
@@ -39,6 +43,8 @@ async function fixture(silent = false) {
     executable: process.execPath,
     cli,
     plugin: root,
+    ...(proxyResolver ? { proxyResolver } : {}),
+    ...(environment ? { environment } : {}),
     startupTimeoutMs: silent ? 150 : 5000
   });
   runtimes.push(runtime);
@@ -97,6 +103,46 @@ describe("assistant runtime", () => {
     await settled;
     await runtime.stop();
   });
+  it("migrates a saved DeepSeek default while keeping a backup", async () => {
+    const { first, runtime } = await fixture();
+    const profile = join(first, "assistant", "profiles", "web");
+    await mkdir(profile, { recursive: true });
+    const patch = join(profile, "cordis.patch.yml");
+    const previous = `- id: agent-default-model\n  config:\n    provider: deepseek-official\n    model: deepseek-v4-pro\n    reasoningEffort: high\n`;
+    await writeFile(patch, previous);
+    await runtime.ensure(first);
+    expect(await readFile(patch, "utf8")).toContain("provider: venice");
+    expect(await readFile(`${patch}.pre-qwen`, "utf8")).toBe(previous);
+  });
+  it("passes the resolved system proxy to the Harness subprocess", async () => {
+    const { root, first, runtime } = await fixture(
+      false,
+      async () => "PROXY 127.0.0.1:7892; DIRECT",
+      {
+        HTTPS_PROXY: undefined,
+        https_proxy: undefined,
+        ALL_PROXY: undefined,
+        all_proxy: undefined,
+        NO_PROXY: undefined,
+        no_proxy: undefined
+      }
+    );
+    const environmentFile = join(root, "environment.json");
+    await writeFile(
+      join(root, "cli.mjs"),
+      `import { writeFileSync } from "node:fs";
+writeFileSync(${JSON.stringify(environmentFile)}, JSON.stringify({ proxy: process.env.HTTPS_PROXY, useEnvProxy: process.env.NODE_USE_ENV_PROXY, noProxy: process.env.NO_PROXY }));
+console.log("dsh web: http://127.0.0.1:12345/?token=local-token");
+setInterval(() => {}, 1000);
+process.on("SIGTERM", () => process.exit(0));`
+    );
+    await runtime.ensure(first);
+    expect(JSON.parse(await readFile(environmentFile, "utf8"))).toEqual({
+      proxy: "http://127.0.0.1:7892",
+      useEnvProxy: "1",
+      noProxy: "localhost,127.0.0.1,::1"
+    });
+  });
   it("authorizes only the active guest origin, initial token and bridge nonce", async () => {
     const { first, runtime } = await fixture();
     const connection = await runtime.ensure(first);
@@ -145,6 +191,12 @@ describe("assistant runtime", () => {
       id: "session-log-deepseek",
       disabled: true
     });
+    expect(patch).toContainEqual({ id: "llm-deepseek", disabled: true });
+    expect(patch).toContainEqual({
+      id: "llm-deepseek-account",
+      disabled: true
+    });
+    expect(patch).toContainEqual({ id: "deepseek-account", disabled: true });
     expect(patch.at(-1)).toMatchObject({
       insert: [{ id: "metaverse-integration" }]
     });

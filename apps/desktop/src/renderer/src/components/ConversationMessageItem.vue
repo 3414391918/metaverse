@@ -4,10 +4,7 @@ import { provideConversationDisclosureScope } from "../composables/conversationD
 import type { LongWorkspaceIndexSnapshot } from "@deepwrite/contracts";
 import type { LongWorkspaceProposalItem } from "../composables/useLongWorkspaceProposals";
 import { formatFileSize } from "../composables/useConversationAttachments";
-import type {
-  ChatMessage,
-  ConversationMessageRewriteRequest
-} from "../types/conversation";
+import type { ChatMessage } from "../types/conversation";
 import { uiMessage } from "../ui-feedback";
 import {
   approvalItemsForMessage,
@@ -17,7 +14,6 @@ import {
 import AgentEditProposalCard from "./AgentEditProposalCard.vue";
 import AppIcon from "./AppIcon.vue";
 import ConversationProcessingTimeline from "./ConversationProcessingTimeline.vue";
-import ConversationUserMessageEditor from "./ConversationUserMessageEditor.vue";
 import LongProposalReview from "./LongProposalReview.vue";
 import StreamedContent from "./StreamedContent.vue";
 
@@ -25,18 +21,11 @@ const props = withDefaults(
   defineProps<{
     message: ChatMessage;
     allowLiveEditReview?: boolean;
-    editable?: boolean;
-    editing?: boolean;
-    submitEditedMessage?:
-      | ((request: ConversationMessageRewriteRequest) => Promise<boolean>)
-      | undefined;
     longProposalItems?: readonly LongWorkspaceProposalItem[];
     longWorkspaceIndex?: LongWorkspaceIndexSnapshot | null;
   }>(),
   {
     allowLiveEditReview: false,
-    editable: false,
-    editing: false,
     longProposalItems: () => [],
     longWorkspaceIndex: null
   }
@@ -56,8 +45,6 @@ const emit = defineEmits<{
   rejectLongProposal: [eventId: string];
   retryLongProposalPreview: [eventId: string];
   locateLongProposal: [eventId: string];
-  requestEdit: [messageId: string];
-  cancelEdit: [messageId: string];
 }>();
 
 provideConversationDisclosureScope(() => props.message.id);
@@ -71,10 +58,6 @@ function formatTime(value: string): string {
     hour: "2-digit",
     minute: "2-digit"
   });
-}
-
-function requestEdit(): void {
-  if (props.editable && !props.editing) emit("requestEdit", props.message.id);
 }
 
 async function copyMessage(): Promise<void> {
@@ -105,7 +88,6 @@ onBeforeUnmount(() => {
     :class="[
       `is-${message.role}`,
       {
-        'is-editing': editing,
         'is-empty-error':
           message.role === 'assistant' &&
           message.status === 'error' &&
@@ -133,18 +115,9 @@ onBeforeUnmount(() => {
       />
 
       <div class="message-content">
-        <ConversationUserMessageEditor
-          v-if="message.role === 'user' && editing && submitEditedMessage"
-          :message-id="message.id"
-          :initial-content="message.content"
-          :disabled="!editable"
-          :submit-edited-message="submitEditedMessage"
-          @cancel="emit('cancelEdit', message.id)"
-        />
         <div
-          v-else-if="message.role === 'user'"
+          v-if="message.role === 'user'"
           class="message-copy user-message-copy"
-          @dblclick="requestEdit"
         >
           <div
             v-if="message.attachments?.length"
@@ -226,20 +199,12 @@ onBeforeUnmount(() => {
       </div>
 
       <div
-        v-if="message.content && message.status !== 'streaming' && !editing"
+        v-if="message.content && message.status !== 'streaming'"
         class="message-actions"
       >
         <span v-if="message.role === 'user'">{{
           formatTime(message.createdAt)
         }}</span>
-        <button
-          v-if="message.role === 'user' && editable"
-          type="button"
-          aria-label="修改并重新发送"
-          @click="requestEdit"
-        >
-          <AppIcon name="edit" :size="15" />
-        </button>
         <button
           type="button"
           :aria-label="
@@ -260,16 +225,3 @@ onBeforeUnmount(() => {
     </div>
   </article>
 </template>
-
-<style scoped>
-.message.is-user.is-editing .message-body {
-  width: 100%;
-  max-width: 100%;
-}
-
-.message.is-user.is-editing .message-content {
-  width: 100%;
-  padding: 0;
-  background: transparent;
-}
-</style>

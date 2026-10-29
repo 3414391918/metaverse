@@ -1,5 +1,4 @@
 import {
-  AgentPromptCommandPayloadSchema,
   AppearanceSettingsSchema,
   AppearanceSettingsSnapshotSchema,
   CommandEnvelopeSchema,
@@ -200,25 +199,6 @@ describe("DeepWrite desktop contracts: snapshots-settings-and-libraries", () => 
         activeResource,
         libraryWorkspace,
         shortWorkspace: {}
-      })
-    ).toThrow();
-
-    const profile = DEFAULT_LIBRARY_AGENT_SETTINGS.agents.find(
-      ({ domain }) => domain === "material"
-    )!;
-    expect(() =>
-      AgentPromptCommandPayloadSchema.parse({
-        sessionId: "session-library",
-        message: "整理素材",
-        workspaceContext: { activeResource, libraryWorkspace },
-        libraryAgentProfile: profile
-      })
-    ).not.toThrow();
-    expect(() =>
-      AgentPromptCommandPayloadSchema.parse({
-        sessionId: "session-library",
-        message: "整理素材",
-        workspaceContext: { activeResource, libraryWorkspace }
       })
     ).toThrow();
   });

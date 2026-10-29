@@ -194,6 +194,70 @@ try {
     /!\[\]\(images\/001\.png\)/
   );
   await assert.rejects(readFile(added.imagePath), { code: "ENOENT" });
+  const manyReferencesBefore = call(
+    "creation",
+    { action: "read", input: { fileId: chapter.body.id } },
+    book
+  );
+  const manyReferences = Array.from({ length: 20 }, (_, index) => {
+    const filename = `${String(index + 100).padStart(3, "0")}.png`;
+    return `${index === 17 ? "夜晚洞穴，火光照亮石壁。" : `第${index + 1}个场景。`}\n![](images/${filename})`;
+  }).join("\n\n");
+  call(
+    "creation",
+    {
+      action: "write",
+      input: {
+        fileId: chapter.body.id,
+        content: `${manyReferencesBefore.content}\n\n${manyReferences}\n`,
+        expectedSha256: manyReferencesBefore.sha256
+      }
+    },
+    book
+  );
+  const nightImage = join(dirname(added.imagePath), "117.png");
+  await cp(sourceImage, nightImage);
+  const latestReferences = call(
+    "creation",
+    {
+      action: "illustration.references",
+      input: { chapterCardId: chapter.chapterCardId }
+    },
+    book
+  );
+  assert.equal(latestReferences.total, 20);
+  assert.equal(latestReferences.references.length, 6);
+  assert.equal(latestReferences.references[0].filename, "119.png");
+  assert.equal(latestReferences.hasMore, true);
+  assert.equal(
+    latestReferences.references.find(({ filename }) => filename === "117.png")
+      ?.available,
+    true
+  );
+  const filteredReferences = call(
+    "creation",
+    {
+      action: "illustration.references",
+      input: { chapterCardId: chapter.chapterCardId, query: "117.png" }
+    },
+    book
+  );
+  assert.deepEqual(
+    filteredReferences.references.map(({ filename }) => filename),
+    ["117.png"]
+  );
+  const olderReferences = call(
+    "creation",
+    {
+      action: "illustration.references",
+      input: { chapterCardId: chapter.chapterCardId, offset: 6, limit: 2 }
+    },
+    book
+  );
+  assert.deepEqual(
+    olderReferences.references.map(({ filename }) => filename),
+    ["113.png", "112.png"]
+  );
   assert.ok(
     call("creation", { action: "schema", input: { name: "character.assets" } })
       .schema.properties.characterId

@@ -12,7 +12,7 @@ import { safeErrorDetails } from "./errors";
 import type { IpcCommandContext } from "./command-types";
 
 export async function handleRendererStateCommands(
-  ctx: Pick<IpcCommandContext, "supervisor" | "activeRuns">,
+  ctx: Pick<IpcCommandContext, "supervisor">,
   command: CommandEnvelope
 ): Promise<CommandResult | undefined> {
   const historyResult = await handleConversationHistoryCommands(ctx, command);

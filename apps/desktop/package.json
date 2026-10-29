@@ -19,7 +19,6 @@
   },
   "devDependencies": {
     "@deepwrite/contracts": "workspace:*",
-    "@deepwrite/pi-runtime-adapter": "workspace:*",
     "@deepwrite/shared": "workspace:*",
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "catalog:",

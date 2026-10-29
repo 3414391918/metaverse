@@ -130,7 +130,7 @@ child.on("close", async (code) => {
   const summary = JSON.parse(marker.slice("DEEPWRITE_SMOKE_OK ".length));
   if (
     summary.health?.status !== "ok" ||
-    summary.health?.workers?.length !== 3
+    summary.health?.workers?.length !== 1
   ) {
     console.error(
       `Electron smoke returned unhealthy utilities: ${JSON.stringify(summary)}`
@@ -180,11 +180,6 @@ child.on("close", async (code) => {
     summary.unifiedCreation?.promptTemplates?.imagePreview !== true ||
     summary.unifiedCreation?.promptTemplates?.delete !== true ||
     summary.unifiedCreation?.retiredApisAbsent !== true ||
-    summary.agent?.status !== "ok" ||
-    summary.agent?.runtime?.mode !== "local-faux" ||
-    summary.agent?.deltaCount < 2 ||
-    summary.agent?.thinkingDeltaCount < 1 ||
-    summary.agent?.completed !== true ||
     summary.conversation?.status !== "ok" ||
     summary.conversation?.staged !== true ||
     summary.conversation?.reopened !== false ||
@@ -194,12 +189,12 @@ child.on("close", async (code) => {
     summary.conversation?.proposalRetained !== true
   ) {
     console.error(
-      `Electron smoke returned an invalid agent summary: ${JSON.stringify(summary)}`
+      `Electron smoke returned an invalid summary: ${JSON.stringify(summary)}`
     );
     process.exit(1);
   }
 
   console.log(
-    `Electron smoke passed: utilities, model calling, unified novel creation, independent tool editor/save/linked navigation/script edit/confirmed deletion, templates, large chapter-image (${summary.chapterImages.imageBytes} bytes) clipboard/replace/reopen/render through real IPC with unchanged references, chapter illustration add/cancel/numbering/undo/redo/preview/reopen, editor preview mode/scroll preservation, and character appearance create/copy/refresh/render/permanent-delete/cancel/lock/other-appearance retention.`
+    `Electron smoke passed: utilities, unified novel creation, independent tool editor/save/linked navigation/script edit/confirmed deletion, templates, large chapter-image (${summary.chapterImages.imageBytes} bytes) clipboard/replace/reopen/render through real IPC with unchanged references, chapter illustration add/cancel/numbering/undo/redo/preview/reopen, editor preview mode/scroll preservation, and character appearance create/copy/refresh/render/permanent-delete/cancel/lock/other-appearance retention.`
   );
 });

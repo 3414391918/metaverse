@@ -6,10 +6,6 @@ type EventOf<Type extends SystemEventEnvelope["type"]> = Extract<
   { type: Type }
 >;
 
-export interface WorkspaceEventConversation {
-  handleEvent(event: SystemEventEnvelope): void;
-}
-
 export interface QueuedAgentEditRun {
   sessionId: string;
   runId: string;
@@ -34,10 +30,6 @@ export interface WorkspaceSystemEventRouteDependencies {
   ): void;
   handleLongWorkspaceProposal(event: SystemEventEnvelope): Promise<unknown>;
   stageLibraryEditProposal(event: EventOf<"library.editor_mutation">): void;
-  allConversations(): readonly WorkspaceEventConversation[];
-  scheduleQueuedAgentEdits(
-    predicate: (queued: QueuedAgentEditRun) => boolean
-  ): void;
   onAsyncError(error: unknown, event: SystemEventEnvelope): void;
 }
 
@@ -76,23 +68,6 @@ export function registerWorkspaceSystemEventRoutes(
     }),
     center.subscribe("library.editor_mutation", (event) => {
       dependencies.stageLibraryEditProposal(event);
-    }),
-    center.subscribeAll((event) => {
-      for (const conversation of dependencies.allConversations()) {
-        conversation.handleEvent(event);
-      }
-    }),
-    center.subscribeAll((event) => {
-      if (
-        event.type === "agent.message_completed" ||
-        event.type === "agent.error"
-      ) {
-        dependencies.scheduleQueuedAgentEdits(
-          (queued) =>
-            queued.sessionId === event.payload.sessionId &&
-            queued.runId === event.payload.runId
-        );
-      }
     })
   ];
   let disposed = false;

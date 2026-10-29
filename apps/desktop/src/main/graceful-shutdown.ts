@@ -1,8 +1,6 @@
 interface ShutdownOptions {
   flushRenderer(): Promise<void>;
   shutdownUtilities(): Promise<void>;
-  flushUsage(): Promise<unknown> | undefined;
-  reportUsage(): Promise<unknown> | undefined;
   complete(installUpdate: boolean): void;
   cancel(error: unknown): void;
 }
@@ -26,11 +24,7 @@ export function createGracefulShutdown(options: ShutdownOptions) {
       }
       // Retain the existing grace period for document draft recovery.
       await new Promise<void>((resolve) => setTimeout(resolve, 500));
-      for (const task of [
-        options.shutdownUtilities,
-        options.flushUsage,
-        options.reportUsage
-      ]) {
+      for (const task of [options.shutdownUtilities]) {
         try {
           await task();
         } catch {

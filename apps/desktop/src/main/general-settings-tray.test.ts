@@ -24,6 +24,10 @@ describe("general settings native behavior", () => {
         "utf8"
       )
     ).toContain("ctx.syncGeneralSettings(snapshot.settings);");
-    expect(source).toContain("applyNetworkProxyPreference(");
+  });
+
+  it("follows the computer's proxy setting for network requests", () => {
+    expect(source).toContain('setProxy({ mode: "system" })');
+    expect(source).not.toContain('mode: "direct"');
   });
 });

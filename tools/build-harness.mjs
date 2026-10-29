@@ -15,6 +15,7 @@ import { resolve, join, isAbsolute, dirname, relative, sep } from "node:path";
 import { readlink, symlink } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { build } from "vite";
+import { configureVeniceDefaults } from "./harness-venice-defaults.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const out = resolve(root, "apps/desktop/out/harness");
 
@@ -142,7 +143,8 @@ async function customizeMetaverseCommandMenu(runtime) {
   if (source.includes("metaverse-flat-command-menu")) return;
   const start = source.indexOf("function sectionRows(rows, t) {");
   const end = source.indexOf("\n\t\t//#endregion", start);
-  const visible = "const visible = rows.filter((c) => req.position === \"leading\" || c.hint === void 0);";
+  const visible =
+    'const visible = rows.filter((c) => req.position === "leading" || c.hint === void 0);';
   if (start < 0 || end < 0 || !source.includes(visible))
     throw new Error("Pinned Harness command menu implementation changed.");
   const menu = `function sectionRows(rows, _t) {
@@ -159,6 +161,22 @@ async function customizeMetaverseCommandMenu(runtime) {
     'const visible = rows.filter((c) => !["feedback", "model", "permission"].includes(c.name) && (req.position === "leading" || c.hint === void 0));'
   );
   await writeFile(file, patched);
+}
+async function customizeVeniceModelDefaults(runtime) {
+  const store = join(runtime, "node_modules/.pnpm");
+  const packages = (await readdir(store)).filter((name) =>
+    name.startsWith("@deepseek-ai+dsh-base@0.2.1-rc.2_")
+  );
+  if (packages.length !== 1)
+    throw new Error("Expected the pinned Harness base package.");
+  const file = join(
+    store,
+    packages[0],
+    "node_modules/@deepseek-ai/dsh-base/cordis.patch.yml"
+  );
+  const source = await readFile(file, "utf8");
+  const configured = configureVeniceDefaults(source);
+  if (configured !== source) await writeFile(file, configured);
 }
 export async function stageHarness({
   platform = process.platform,
@@ -227,6 +245,7 @@ export async function stageHarness({
     }
   }
   await customizeMetaverseCommandMenu(runtime);
+  await customizeVeniceModelDefaults(runtime);
   const nodePackage =
     platform === "darwin" && arch === "arm64"
       ? "node-bin-darwin-arm64"

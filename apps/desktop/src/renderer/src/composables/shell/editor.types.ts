@@ -92,9 +92,6 @@ export interface EditorRuntime {
   updateShowInMenuBar: ReturnType<
     typeof useGeneralSettingsCoordinator
   >["updateShowInMenuBar"];
-  updateUseNetworkProxy: ReturnType<
-    typeof useGeneralSettingsCoordinator
-  >["updateUseNetworkProxy"];
   updateWorkspacePaneLayout: ReturnType<
     typeof useGeneralSettingsCoordinator
   >["updateWorkspacePaneLayout"];

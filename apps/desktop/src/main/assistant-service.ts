@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { app } from "electron";
+import { app, session } from "electron";
 import { AssistantRuntime } from "./assistant-runtime";
 let runtime: AssistantRuntime | undefined;
 export function assistantRuntime(): AssistantRuntime {
@@ -15,7 +15,11 @@ export function assistantRuntime(): AssistantRuntime {
       ),
       cli: resolve(base, "runtime/launch.mjs"),
       plugin: resolve(base, "plugin"),
-      environment: { DSH_CLIENT_TITLE: "元宇宙" }
+      environment: { DSH_CLIENT_TITLE: "元宇宙" },
+      proxyResolver: () =>
+        session.defaultSession.resolveProxy(
+          "https://api.venice.ai/api/v1/models"
+        )
     });
   }
   return runtime;

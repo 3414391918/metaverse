@@ -34,7 +34,7 @@ node /工作目录/tools/creation/cli.mjs --book /小说目录 --input /请求.j
 | appearance.delete | 根据 schema 物理删除指定形象及资产，调用前确认用户的删除范围 |
 | character.assets | `{"characterId":"人物ID"}` 列出该角色各形象资产的绝对路径、标签与是否可读取；生成插图时把相关路径作为图片参考传给生图工具 |
 | character.assets.import | `{"characterId":"人物ID","appearanceId":"形象ID","sourcePaths":["/绝对路径/面部特写.png"]}` 安全导入已生成图片，文件名成为标签；返回形象资产记录 |
-| illustration.references | `{"chapterCardId":"章卡ID"}` 列出该章正文已引用插图的绝对路径、附近文字与可用状态；先 `search` 定位此前出现的场景再调用 |
+| illustration.references | `{"chapterCardId":"章卡ID","query":"夜晚洞穴","order":"desc","offset":0,"limit":6}` 查询该章正文已引用的插图；默认从正文末尾向前每次返回 6 张，结果含 `total`、`hasMore`、绝对路径、附近文字和可用状态。`query` 可按文件名或附近正文筛选；继续翻页时增加 `offset`。先用 `search` 定位相关章节；不要用 `head` 截断 JSON 输出，也不要把 `illustration-deliveries` 当作正文图片目录 |
 | illustration.add | `{"chapterCardId":"章卡ID","imagePath":"/本地图片.png","expectedSha256":"read 返回的哈希","offset":123}` 原子保存 PNG 并在正文位置插入相对引用；先查看 schema |
 | illustration.delete | `{"chapterCardId":"章卡ID","filename":"001.png","expectedSha256":"read 返回的哈希","offset":123}` 删除该位置的图片引用；无其它引用时同时删除图片文件。先用 `read` 和 `illustration.references` 定位并核对 |
 | agents.read / agents.write | 读取本书创作约束；写入使用 `{"content":"完整约束"}` |

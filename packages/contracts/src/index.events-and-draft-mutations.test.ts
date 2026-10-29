@@ -148,7 +148,7 @@ describe("desktop contracts: agent and Utility events", () => {
     expect(
       UtilityOutboundMessageSchema.parse({
         kind: "utility.command.event",
-        worker: "agent",
+        worker: "core",
         requestId: "request_retry",
         event: retryScheduled
       }).kind
@@ -224,11 +224,7 @@ describe("desktop contracts: agent and Utility events", () => {
   });
 
   it("validates command and event messages at the Utility boundary", () => {
-    const command = createEnvelope(
-      "session.prompt",
-      { sessionId: "session_1", message: "分析人物动机" },
-      { id: "cmd_utility", context: { sessionId: "session_1" } }
-    );
+    const command = createEnvelope("system.health", {}, { id: "cmd_utility" });
     const event = createEnvelope(
       "agent.message_delta",
       {
@@ -254,30 +250,37 @@ describe("desktop contracts: agent and Utility events", () => {
     expect(
       UtilityOutboundMessageSchema.parse({
         kind: "utility.command.event",
-        worker: "agent",
+        worker: "core",
         requestId: "request_1",
         event
       }).kind
     ).toBe("utility.command.event");
 
-    const internalCommand = createEnvelope(
-      "system.health",
-      {},
-      { id: "cmd_internal_health" }
-    );
+    // The internal command bridge between the removed agent/tool workers and
+    // core is gone; core is the only worker left in the process contract.
+    for (const worker of ["agent", "tool"]) {
+      expect(
+        UtilityOutboundMessageSchema.safeParse({
+          kind: "utility.ready",
+          worker,
+          pid: 1234,
+          startedAt: "2026-08-17T07:58:00.000Z"
+        }).success
+      ).toBe(false);
+    }
     expect(
-      UtilityOutboundMessageSchema.parse({
+      UtilityOutboundMessageSchema.safeParse({
         kind: "utility.internal.command.request",
         worker: "agent",
         target: "core",
         requestId: "internal_request_1",
         parentRequestId: "request_1",
         timeoutMs: 5_000,
-        command: internalCommand
-      }).kind
-    ).toBe("utility.internal.command.request");
+        command
+      }).success
+    ).toBe(false);
     expect(
-      UtilityInboundMessageSchema.parse({
+      UtilityInboundMessageSchema.safeParse({
         kind: "utility.internal.command.result",
         worker: "agent",
         target: "core",
@@ -285,31 +288,9 @@ describe("desktop contracts: agent and Utility events", () => {
         parentRequestId: "request_1",
         result: {
           status: "accepted",
-          requestId: internalCommand.id,
+          requestId: command.id,
           payload: { status: "ok" }
         }
-      }).kind
-    ).toBe("utility.internal.command.result");
-    expect(
-      UtilityOutboundMessageSchema.safeParse({
-        kind: "utility.internal.command.request",
-        worker: "core",
-        target: "tool",
-        requestId: "internal_request_wrong_source",
-        parentRequestId: "request_1",
-        timeoutMs: 5_000,
-        command: internalCommand
-      }).success
-    ).toBe(false);
-    expect(
-      UtilityOutboundMessageSchema.safeParse({
-        kind: "utility.internal.command.request",
-        worker: "agent",
-        target: "agent",
-        requestId: "internal_request_loop",
-        parentRequestId: "request_1",
-        timeoutMs: 5_000,
-        command: internalCommand
       }).success
     ).toBe(false);
   });

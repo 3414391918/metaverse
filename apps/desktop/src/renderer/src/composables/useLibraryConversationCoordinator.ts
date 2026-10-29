@@ -1,4 +1,3 @@
-import { useLibraryConversationSend } from "./useLibraryConversationSend";
 import { createConversationHistorySelection } from "./conversationHistorySelection";
 import {
   ATTACHED_CONTEXT_MAX_ITEMS,
@@ -13,7 +12,6 @@ import {
   agentConversationKeyForDocument,
   agentRunScopeForDocument
 } from "../utils/agentRunPreferences";
-import { createConversationHistoryRewriteDispatcher } from "./agent-conversation/history-rewrite-dispatcher";
 import {
   composerStageLabel,
   stableDocumentDescriptor,
@@ -21,10 +19,11 @@ import {
   type LibraryConversationCoordinatorOptions
 } from "./libraryConversationContext";
 
-/** Owns library management conversations and send preflight. */
+/** Library history navigation and persisted preferences. Execution belongs to Harness. */
 export function useLibraryConversationCoordinator(
   options: LibraryConversationCoordinatorOptions
 ) {
+  let disposed = false;
   const activeDescriptor = stableDocumentDescriptor(
     options.resource.activeAgentDocument
   );
@@ -40,10 +39,6 @@ export function useLibraryConversationCoordinator(
       activeConversationScope.value
     )
   );
-  const resendMessage = createConversationHistoryRewriteDispatcher({
-    conversation: () => activeConversation.value,
-    dispatch: (request) => sendMessage([], request)
-  });
   const activeLibraryDomain = computed<LibraryAgentDomain | undefined>(() => {
     const domain = activeDescriptor.value.domain;
     return domain === "material" || domain === "skill" ? domain : undefined;
@@ -56,32 +51,16 @@ export function useLibraryConversationCoordinator(
         )
       : undefined;
   });
-  const {
-    sendMessage,
-    sendPreflightPending,
-    invalidateSendTarget,
-    dispose: disposeSend,
-    drain,
-    disposed: isDisposed
-  } = useLibraryConversationSend(
-    options,
-    activeConversation,
-    activeConversationKey,
-    activeLibraryAgentProfile
+  const availableSkillReferences = computed<ComposerReferenceOption[]>(() =>
+    (activeLibraryAgentProfile.value?.readAccess.skills ?? [])
+      .slice(0, ATTACHED_CONTEXT_MAX_ITEMS)
+      .map((skill) => ({
+        id: `library-agent-skill:${skill.id}`,
+        label: skill.name,
+        detail: "按需加载的方法"
+      }))
   );
-  const availableSkillReferences = computed<ComposerReferenceOption[]>(() => {
-    if (activeLibraryDomain.value) {
-      return (activeLibraryAgentProfile.value?.readAccess.skills ?? [])
-        .slice(0, ATTACHED_CONTEXT_MAX_ITEMS)
-        .map((skill) => ({
-          id: `library-agent-skill:${skill.id}`,
-          label: skill.name,
-          detail: "按需加载的方法"
-        }));
-    }
-    return [];
-  });
-  const availableMaterialReferences = computed<ComposerReferenceOption[]>(() =>
+  const availableMaterialReferences = computed(() =>
     libraryEntryReferences(
       options.catalog.snapshot.value,
       activeDescriptor.value,
@@ -91,188 +70,101 @@ export function useLibraryConversationCoordinator(
   const conversationContext = computed(() => {
     const descriptor = activeDescriptor.value;
     return {
-      runtimeAvailable: options.runtimeAvailable(),
-      allowLiveEditReview: true,
+      runtimeAvailable: false,
+      allowLiveEditReview: false,
       contextTitle: descriptor.title,
       bookTitle:
         descriptor.workspaceTitle || descriptor.pathRoot || "未选择资源",
       stageLabel: composerStageLabel(descriptor),
-      agentLabel: activeLibraryAgentProfile.value?.label ?? "智能体对话",
+      agentLabel: activeLibraryAgentProfile.value?.label ?? "历史对话",
       agentId: undefined,
       welcomeShortcuts: undefined,
       libraryDomain: activeLibraryDomain.value,
       librarySkills: activeLibraryAgentProfile.value?.readAccess.skills.map(
-        (skill) => ({
-          name: skill.name
-        })
+        (skill) => ({ name: skill.name })
       ),
       availableSkills: availableSkillReferences.value,
       availableMaterials: availableMaterialReferences.value,
       editorReferences: options.resource.pendingEditorReferences.value,
       leftCollapsed: options.resource.leftCollapsed.value,
-      rightCollapsed: options.resource.rightCollapsed.value,
-      canRewriteHistory:
-        activeConversation.value.canRewriteHistory.value &&
-        !sendPreflightPending.value &&
-        options.edits.acceptingDocumentIds.value.size === 0 &&
-        options.edits.acceptingWorkspaceIds.value.size === 0 &&
-        !options.edits.hasQueued(),
-      submitEditedMessage: resendMessage
+      rightCollapsed: options.resource.rightCollapsed.value
     };
   });
-
-  const stopWebSearchSync = watch(
+  function synchronizeActiveRunPreferences() {
+    options.runtime.synchronizeRunPreferences(
+      activeConversationScope.value,
+      activeConversation.value
+    );
+  }
+  const stopPreferenceSync = watch(
     () => activeConversation.value.webSearchEnabled.value,
     () => {
-      if (isDisposed()) return;
-      const conversation = activeConversation.value;
-      options.runtime.synchronizeSessionModelSelection(conversation);
-      synchronizeActiveRunPreferences(conversation);
+      if (disposed) return;
+      options.runtime.synchronizeSessionModelSelection(
+        activeConversation.value
+      );
+      synchronizeActiveRunPreferences();
     },
     { flush: "sync" }
   );
-
-  function updateDraft(value: string): void {
-    activeConversation.value.draft.value = value;
-  }
-
-  function newConversation(): void {
-    invalidateSendTarget();
-    const conversation = activeConversation.value;
-    if (conversation.isBusy.value) {
-      options.notifications.warning("请先停止当前回复，再新建对话。");
-      return;
-    }
-    if (
-      options.edits.acceptingDocumentIds.value.size > 0 ||
-      options.edits.acceptingWorkspaceIds.value.size > 0 ||
-      options.edits.hasQueued()
-    ) {
-      options.notifications.info("请等待智能体修改保存完成后再新建对话");
-      return;
-    }
-    options.showConversation();
-    conversation.newConversation();
-    options.resource.clearEditorSelectionReferences();
-  }
-
   const selectConversation = createConversationHistorySelection({
-    prepare() {
-      invalidateSendTarget();
-      if (
-        options.edits.acceptingDocumentIds.value.size > 0 ||
-        options.edits.acceptingWorkspaceIds.value.size > 0 ||
-        options.edits.hasQueued()
-      ) {
-        options.notifications.info("请等待智能体修改保存完成后再切换对话");
-        return false;
-      }
-      return !isDisposed();
-    },
+    prepare: () => !disposed,
     current: () => activeConversation.value,
     warning: (message) => options.notifications.warning(message),
-    busyMessage: "请先停止当前回复，再切换历史对话",
+    busyMessage: "请等待历史保存完成后再切换对话",
     unavailableMessage: "这条历史对话已不可用，请重新打开历史列表",
-    selected(conversation) {
+    selected() {
       options.resource.clearEditorSelectionReferences();
-      queueMicrotask(() => {
-        if (!isDisposed()) options.edits.resumeRecovered([conversation]);
-      });
     }
   });
-
-  function useSuggestion(value: string): void {
-    activeConversation.value.useSuggestion(value);
-  }
-
-  async function stopGeneration(): Promise<void> {
-    const conversation = activeConversation.value;
-    try {
-      if (await conversation.stopGeneration()) {
-        options.notifications.info("已停止生成");
-      }
-    } catch (error: unknown) {
-      if (!isDisposed()) {
-        options.notifications.error(
-          error instanceof Error ? error.message : "停止生成失败，请稍后重试。"
-        );
-      }
-    }
-  }
-
-  function synchronizeActiveRunPreferences(
-    conversation = activeConversation.value
-  ): void {
-    options.runtime.synchronizeRunPreferences(
-      activeConversationScope.value,
-      conversation
-    );
-  }
-
-  function selectModel(modelId: string): void {
-    const conversation = activeConversation.value;
-    conversation.selectModel(modelId);
-    options.runtime.synchronizeSessionModelSelection(conversation);
-    synchronizeActiveRunPreferences(conversation);
-  }
-
-  function selectThinking(level: ThinkingLevel): void {
-    const conversation = activeConversation.value;
-    conversation.selectThinkingLevel(level);
-    options.runtime.synchronizeSessionModelSelection(conversation);
-    synchronizeActiveRunPreferences(conversation);
-  }
-
-  function selectWebSearch(enabled: boolean): void {
-    const conversation = activeConversation.value;
-    conversation.selectWebSearchEnabled(enabled);
-    options.runtime.synchronizeSessionModelSelection(conversation);
-    synchronizeActiveRunPreferences(conversation);
-  }
-
-  function selectTemperature(value: number): void {
-    activeConversation.value.selectTemperature(value);
-    synchronizeActiveRunPreferences();
-  }
-
-  function selectApprovalMode(mode: AgentRunSettings["approvalMode"]): void {
-    options.settings.updatePermissionMode(mode);
-    activeConversation.value.selectApprovalMode(mode);
-    synchronizeActiveRunPreferences();
-  }
-
-  function selectAgentTeamMode(mode: AgentTeamRunMode): void {
-    const conversation = activeConversation.value;
-    conversation.selectAgentTeamMode(mode);
-    synchronizeActiveRunPreferences(conversation);
-  }
-
   return {
     activeConversation,
     activeConversationKey,
     conversationContext,
-    dispose: async () => {
-      stopWebSearchSync();
-      await disposeSend();
+    async dispose() {
+      disposed = true;
+      stopPreferenceSync();
     },
-    drain,
-    newConversation,
-    selectAgentTeamMode,
-    selectApprovalMode,
+    newConversation() {
+      if (disposed || activeConversation.value.isBusy.value) return;
+      activeConversation.value.newConversation();
+      options.resource.clearEditorSelectionReferences();
+      options.showConversation();
+    },
     selectConversation,
-    selectModel,
-    selectTemperature,
-    selectThinking,
-    selectWebSearch,
-    resendMessage,
-    sendMessage,
-    sendPreflightPending,
-    stopGeneration,
-    updateDraft,
-    useSuggestion
+    selectModel(modelId: string) {
+      activeConversation.value.selectModel(modelId);
+      synchronizeActiveRunPreferences();
+    },
+    selectThinking(level: ThinkingLevel) {
+      activeConversation.value.selectThinkingLevel(level);
+      synchronizeActiveRunPreferences();
+    },
+    selectWebSearch(enabled: boolean) {
+      activeConversation.value.selectWebSearchEnabled(enabled);
+      synchronizeActiveRunPreferences();
+    },
+    selectTemperature(value: number) {
+      activeConversation.value.selectTemperature(value);
+      synchronizeActiveRunPreferences();
+    },
+    selectApprovalMode(mode: AgentRunSettings["approvalMode"]) {
+      options.settings.updatePermissionMode(mode);
+      activeConversation.value.selectApprovalMode(mode);
+      synchronizeActiveRunPreferences();
+    },
+    selectAgentTeamMode(mode: AgentTeamRunMode) {
+      activeConversation.value.selectAgentTeamMode(mode);
+      synchronizeActiveRunPreferences();
+    },
+    updateDraft(value: string) {
+      activeConversation.value.draft.value = value;
+    },
+    useSuggestion(value: string) {
+      activeConversation.value.draft.value = value;
+    }
   };
 }
-
 export type LibraryConversationCoordinator = ReturnType<
   typeof useLibraryConversationCoordinator
 >;

@@ -549,7 +549,7 @@ export async function runWorkspaceAction(
       };
     }
     case "illustration.references": {
-      const { chapterCardId } =
+      const { chapterCardId, query, order, offset, limit } =
         ToolkitIllustrationReferencesInputSchema.parse(input);
       const chapter = opened.book.workspaceIndex.chapters.find(
         (item) => item.chapterCardId === chapterCardId
@@ -561,11 +561,12 @@ export async function runWorkspaceAction(
       })) as { content: string };
       return {
         chapterCardId,
-        references: await listChapterIllustrations(
+        ...(await listChapterIllustrations(
           directory,
           chapter.body.path,
-          body.content
-        )
+          body.content,
+          { query, order, offset, limit }
+        ))
       };
     }
     case "agents.read":

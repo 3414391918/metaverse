@@ -1,9 +1,7 @@
 import { z } from "zod";
-import { EnvelopeBaseSchema } from "./envelope";
 import {
   ModelConfigSchema,
   ModelConfigInputSchema,
-  AgentProviderRuntimeConfigSchema,
   MODEL_CONTEXT_WINDOW_MAX,
   ModelApiSchema,
   ToolSchemaProfileSchema,
@@ -128,84 +126,12 @@ export type ModelConnectionTestResult = z.infer<
   typeof ModelConnectionTestResultSchema
 >;
 
-export const ModelsListCommandEnvelopeSchema = EnvelopeBaseSchema.extend({
-  type: z.literal("models.list"),
-  payload: z.object({})
-});
-
-export const ModelsRefreshFreeCommandEnvelopeSchema = EnvelopeBaseSchema.extend(
-  {
-    type: z.literal("models.refreshFree"),
-    payload: z.object({})
-  }
-);
-
-export const ModelsSetFreeModelEnabledCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("models.setFreeModelEnabled"),
-    payload: z.object({
-      modelId: z.string().trim().min(1).max(120),
-      enabled: z.boolean()
-    })
-  });
-
-export const ModelsRefreshOfficialCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("models.refreshOfficial"),
-    payload: z.object({})
-  });
-
-export const ModelsQueryOfficialBalanceCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("models.queryOfficialBalance"),
-    payload: z.object({})
-  });
-
-export const ModelsSaveOfficialTokenCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("models.saveOfficialToken"),
-    payload: z.object({
-      apiKey: z.string().trim().min(1).max(16_000)
-    })
-  });
-
-export const ModelsClearOfficialTokenCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("models.clearOfficialToken"),
-    payload: z.object({})
-  });
-
-export const ModelsSetOfficialModelEnabledCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("models.setOfficialModelEnabled"),
-    payload: z.object({
-      modelId: z.string().trim().min(1).max(120),
-      enabled: z.boolean()
-    })
-  });
-
-export const ModelsSaveCommandEnvelopeSchema = EnvelopeBaseSchema.extend({
-  type: z.literal("models.save"),
-  payload: ModelSettingsInputSchema
-});
-
-export const ModelsTestCommandEnvelopeSchema = EnvelopeBaseSchema.extend({
-  type: z.literal("models.test"),
-  payload: z.object({ model: ModelConfigInputSchema })
-});
-
 export const ModelCapacityResultSchema = z.object({
   modelId: z.string().min(1),
   contextWindow: z.number().int().positive().max(MODEL_CONTEXT_WINDOW_MAX),
   maxTokens: z.number().int().positive().max(MODEL_CONTEXT_WINDOW_MAX)
 });
 export type ModelCapacityResult = z.infer<typeof ModelCapacityResultSchema>;
-
-export const ModelsResolveCapacityCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("models.resolveCapacity"),
-    payload: z.object({ model: ModelConfigInputSchema })
-  });
 
 export const RemoteModelListInputSchema = z.object({
   id: z.string().trim().min(1).max(120).optional(),
@@ -242,21 +168,5 @@ export const RemoteModelListResultSchema = z.object({
   models: z.array(RemoteModelListItemSchema).max(2_000)
 });
 export type RemoteModelListResult = z.infer<typeof RemoteModelListResultSchema>;
-
-export const ModelsListRemoteCommandEnvelopeSchema = EnvelopeBaseSchema.extend({
-  type: z.literal("models.listRemote"),
-  payload: RemoteModelListInputSchema
-});
-
-export const AgentModelTestCommandEnvelopeSchema = EnvelopeBaseSchema.extend({
-  type: z.literal("agent.model_test"),
-  payload: z.object({ runtimeConfig: AgentProviderRuntimeConfigSchema })
-});
-
-export const AgentModelCapacityCommandEnvelopeSchema =
-  EnvelopeBaseSchema.extend({
-    type: z.literal("agent.model_capacity"),
-    payload: z.object({ runtimeConfig: AgentProviderRuntimeConfigSchema })
-  });
 
 export * from "./site-official-models";

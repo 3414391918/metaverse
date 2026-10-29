@@ -1,43 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { acquireConversationOperation } from "./conversation-operation-guard";
-import type { ActiveRun } from "./command-types";
 
 describe("Main conversation operation ownership", () => {
-  it("blocks deletion while prompt acceptance is still pending and releases after failure", () => {
-    const runs = new Map<string, ActiveRun>();
-    const prompt = acquireConversationOperation(runs, "session", "prompt")!;
+  it("blocks concurrent management operations per session and releases afterwards", () => {
+    const release = acquireConversationOperation("session", "management")!;
+    expect(release).toBeTypeOf("function");
     expect(
-      acquireConversationOperation(runs, "session", "management")
+      acquireConversationOperation("session", "management")
     ).toBeUndefined();
-    const unrelated = acquireConversationOperation(runs, "other", "management");
+    const unrelated = acquireConversationOperation("other", "management");
     expect(unrelated).toBeTypeOf("function");
     unrelated!();
-    prompt();
-    prompt();
-    const deletion = acquireConversationOperation(
-      runs,
-      "session",
-      "management"
-    )!;
-    expect(deletion).toBeTypeOf("function");
-    expect(
-      acquireConversationOperation(runs, "session", "prompt")
-    ).toBeUndefined();
-    deletion();
-    expect(acquireConversationOperation(runs, "session", "prompt")).toBeTypeOf(
+    release();
+    const next = acquireConversationOperation("session", "management")!;
+    expect(next).toBeTypeOf("function");
+    next();
+  });
+
+  it("ignores duplicate releases", () => {
+    const release = acquireConversationOperation("session", "management")!;
+    release();
+    release();
+    expect(acquireConversationOperation("session", "management")).toBeTypeOf(
       "function"
     );
-  });
-  it("consults authoritative running sessions even when Renderer reports idle", () => {
-    const runs = new Map<string, ActiveRun>([
-      ["run", { sessionId: "session" } as ActiveRun]
-    ]);
-    expect(
-      acquireConversationOperation(runs, "session", "management")
-    ).toBeUndefined();
-    runs.clear();
-    expect(
-      acquireConversationOperation(runs, "session", "management")
-    ).toBeTypeOf("function");
   });
 });

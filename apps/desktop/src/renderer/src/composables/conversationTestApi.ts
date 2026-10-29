@@ -1,6 +1,5 @@
 import { createGeneralSettingsTestApi } from "./generalSettingsTestApi";
 import { createUnusedLongApi } from "./unusedLongApi.test-support";
-import { createModelApiTestFixture } from "./modelApiTestFixture";
 import { createConversationCatalogTestApi } from "./conversationCatalogTestApi";
 import { createAgentTeamsTestApi } from "./agentTeamsTestApi";
 import {
@@ -10,9 +9,7 @@ import {
   type DeepWriteApi
 } from "@deepwrite/contracts/renderer";
 
-export function createConversationTestApi(
-  session: DeepWriteApi["session"]
-): DeepWriteApi {
+export function createConversationTestApi(): DeepWriteApi {
   return {
     toolLibrary: {
       async list() {
@@ -41,7 +38,6 @@ export function createConversationTestApi(
         return {};
       }
     },
-    session,
     system: {
       async health() {
         return {
@@ -86,27 +82,6 @@ export function createConversationTestApi(
     },
     catalog: createConversationCatalogTestApi(),
     long: createUnusedLongApi(),
-    models: createModelApiTestFixture(),
-    modelUsage: {
-      async query() {
-        return {
-          generatedAt: new Date().toISOString(),
-          totals: {
-            inputTokens: 0,
-            outputTokens: 0,
-            cacheReadTokens: 0,
-            cacheWriteTokens: 0,
-            totalTokens: 0,
-            requestCount: 0
-          },
-          trendGranularity: "day",
-          trend: [],
-          models: [],
-          modules: [],
-          recentCalls: []
-        };
-      }
-    },
     longAgents: {
       async list() {
         return structuredClone(DEFAULT_LONG_AGENT_SETTINGS);

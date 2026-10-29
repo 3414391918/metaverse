@@ -6,11 +6,14 @@ import {
   realpath,
   writeFile,
   rename,
-  rm
+  rm,
+  readFile
 } from "node:fs/promises";
 import { delimiter, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { AssistantConnection } from "@deepwrite/contracts";
+import { migrateLegacyDefaultModel } from "./assistant-model-migration";
+import { assistantProxyEnvironment } from "./assistant-proxy";
 
 /** Replace generated files rather than following a user-created leaf symlink. */
 async function writeGenerated(path: string, value: string, mode = 0o600) {
@@ -42,7 +45,10 @@ export function assistantOverlay(pluginPath: string) {
       "product-analytics",
       "desktop-product-telemetry",
       "harness-dev-context",
-      "session-log-deepseek"
+      "session-log-deepseek",
+      "llm-deepseek",
+      "llm-deepseek-account",
+      "deepseek-account"
     ].map((id) => ({ id, disabled: true })),
     {
       insert: [
@@ -75,6 +81,7 @@ export class AssistantRuntime {
       cli: string;
       plugin: string;
       environment?: NodeJS.ProcessEnv;
+      proxyResolver?: () => Promise<string>;
       startupTimeoutMs?: number;
     }
   ) {}
@@ -127,6 +134,7 @@ export class AssistantRuntime {
   ): Promise<AssistantConnection> {
     const home = join(workspace, "assistant");
     await mkdir(home, { recursive: true });
+    await this.migrateModelSelection(home);
     // Reject redirected state folders before handing them to the subprocess.
     if ((await realpath(home)) !== resolve(home))
       throw new Error("智能体数据目录不能是符号链接。");
@@ -155,6 +163,14 @@ export class AssistantRuntime {
       0o755
     );
     if (generation !== this.generation) throw new Error("智能体启动已取消。");
+    const inheritedEnvironment = {
+      ...process.env,
+      ...this.options.environment
+    };
+    const proxyEnvironment = assistantProxyEnvironment(
+      (await this.options.proxyResolver?.()) ?? "DIRECT",
+      inheritedEnvironment
+    );
     const child = spawn(
       this.options.executable,
       [
@@ -172,8 +188,8 @@ export class AssistantRuntime {
         windowsHide: true,
         stdio: ["pipe", "pipe", "pipe"],
         env: {
-          ...process.env,
-          ...this.options.environment,
+          ...inheritedEnvironment,
+          ...proxyEnvironment,
           ELECTRON_RUN_AS_NODE: undefined,
           DSH_HOME: home,
           PATH: `${bin}${delimiter}${process.env.PATH ?? ""}`,
@@ -238,6 +254,22 @@ export class AssistantRuntime {
           reject(new Error(`智能体未能启动（${signal ?? code}）。${tail}`));
       });
     });
+  }
+
+  private async migrateModelSelection(home: string): Promise<void> {
+    const patch = join(home, "profiles", "web", "cordis.patch.yml");
+    let current: string;
+    try {
+      current = await readFile(patch, "utf8");
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT")
+        return;
+      throw error;
+    }
+    const migrated = migrateLegacyDefaultModel(current);
+    if (migrated === current) return;
+    await writeGenerated(`${patch}.pre-qwen`, current);
+    await writeGenerated(patch, migrated);
   }
 
   stop(): Promise<void> {

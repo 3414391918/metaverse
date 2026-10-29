@@ -3,13 +3,7 @@ import { nextTick } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useConversationStore } from "./conversationStore";
 import { conversationHistoryPersistenceKey } from "../utils/conversationPersistenceKeys";
-import {
-  createDeferredApi,
-  createEnvelope,
-  document,
-  runtime,
-  useAgentConversation
-} from "../composables/useAgentConversation.test-support";
+import { useAgentConversation } from "../composables/useAgentConversation";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -36,12 +30,11 @@ function harness() {
       close = handler;
       return () => undefined;
     },
-    load: async (key) => disk.get(key),
+    load: async (loadKey) => disk.get(loadKey),
     save
   });
-  const deferred = createDeferredApi();
   const controller = useAgentConversation({
-    api: () => deferred.api,
+    api: () => undefined,
     onPersistenceChange: () =>
       store.schedulePersistenceFactory(
         key,
@@ -49,41 +42,39 @@ function harness() {
       )
   });
   store.registerController("book:interruption", "general", controller);
-  return { store, controller, deferred, disk, key, save, close: () => close() };
+  return { store, controller, disk, key, save, close: () => close() };
 }
 
-async function startRun(h: ReturnType<typeof harness>) {
-  h.controller.draft.value = "请完成这一轮写作";
-  const sending = h.controller.sendMessage(document);
-  h.deferred.resolveAccepted(0, {
-    sessionId: h.controller.sessionId.value,
-    runId: "run_interrupted",
-    acceptedAt: new Date().toISOString(),
-    runtime
-  });
-  await sending;
-  await settleCheckpoint();
+function runningAssistant(h: ReturnType<typeof harness>) {
+  h.controller.messages.value = [
+    {
+      id: "user-interrupted",
+      role: "user",
+      content: "请完成这一轮写作",
+      createdAt: "2026-09-07T00:00:00.000Z",
+      status: "completed"
+    },
+    {
+      id: "message_interrupted",
+      role: "assistant",
+      runId: "run_interrupted",
+      content: "",
+      createdAt: "2026-09-07T00:00:01.000Z",
+      status: "streaming"
+    }
+  ];
 }
 
-let eventClock = 0;
-function delta(h: ReturnType<typeof harness>, content: string) {
-  const sessionId = h.controller.sessionId.value;
-  h.controller.handleEvent(
-    createEnvelope(
-      "agent.message_delta",
-      {
-        sessionId,
-        runId: "run_interrupted",
-        messageId: "message_interrupted",
-        delta: content,
-        runtime
-      },
-      {
-        id: `delta_${++eventClock}`,
-        context: { sessionId, runId: "run_interrupted" }
-      }
-    )
-  );
+function appendDelta(
+  h: ReturnType<typeof harness>,
+  chunk: string,
+  status: "streaming" | "error" | "stopped" = "streaming"
+) {
+  const messages = h.controller.messages.value;
+  const last = messages.at(-1);
+  if (!last || last.role !== "assistant") throw new Error("no assistant");
+  last.content = `${last.content}${chunk}`;
+  last.status = status;
 }
 
 function reopen(h: ReturnType<typeof harness>) {
@@ -94,63 +85,52 @@ function reopen(h: ReturnType<typeof harness>) {
 }
 
 describe("conversation persistence during interruption", () => {
-  it("saves the new session and checkpoints continuous output without waiting for silence", async () => {
+  it("checkpoints continuous history updates without waiting for silence", async () => {
     const h = harness();
-    h.controller.messages.value = [
-      {
-        id: "sent-first",
-        role: "user",
-        content: "已发送的消息",
-        createdAt: "2026-09-07T00:00:00.000Z"
-      }
-    ];
-    h.controller.draft.value = "旧会话";
-    await h.store.flushPersistence();
-    await h.controller.newConversation();
-    await startRun(h);
-    const sessionId = h.controller.sessionId.value;
-    const restored = reopen(h);
-    expect(restored.sessionId.value).toBe(sessionId);
-    expect(
-      restored.messages.value.some((m) => m.content === "请完成这一轮写作")
-    ).toBe(true);
-    expect(restored.history.value).toHaveLength(2);
-    restored.dispose();
-
-    delta(h, "第一段");
+    runningAssistant(h);
+    appendDelta(h, "第一段");
     await vi.advanceTimersByTimeAsync(300);
     await settleCheckpoint();
-    await h.store.flushPersistence();
+    const interrupted = reopen(h);
+    expect(
+      interrupted.messages.value.some((m) => m.content === "请完成这一轮写作")
+    ).toBe(true);
+    expect(interrupted.messages.value.at(-1)?.content).toContain("第一段");
+    interrupted.dispose();
+
     const writes = h.save.mock.calls.length;
     for (let index = 0; index < 30; index += 1) {
-      delta(h, "后续段落");
+      appendDelta(h, "后续段落");
       await vi.advanceTimersByTimeAsync(100);
     }
     expect(h.save.mock.calls.length).toBeGreaterThan(writes);
-    const interrupted = reopen(h);
-    expect(interrupted.messages.value.at(-1)?.content).toContain("后续段落");
-    interrupted.dispose();
+    const restored = reopen(h);
+    expect(restored.messages.value.at(-1)?.content).toContain("后续段落");
+    restored.dispose();
     await h.store.dispose({ flush: false });
   });
 
-  it("flushes the partial reply when the agent fails, even if the app immediately loses its renderer", async () => {
+  it("recovers a legacy running message as persisted history without any runtime abort", async () => {
     const h = harness();
-    await startRun(h);
-    delta(h, "失败前已经生成的内容");
-    const sessionId = h.controller.sessionId.value;
-    h.controller.handleEvent(
-      createEnvelope(
-        "agent.error",
-        {
-          sessionId,
-          runId: "run_interrupted",
-          code: "provider.failed",
-          message: "模拟请求失败",
-          retryable: false
-        },
-        { id: "event_failed", context: { sessionId, runId: "run_interrupted" } }
+    runningAssistant(h);
+    appendDelta(h, "中断前已经生成的内容");
+    await settleCheckpoint();
+    await h.store.dispose({ flush: false });
+    const restored = reopen(h);
+    expect(
+      restored.messages.value.some((m) =>
+        m.content.includes("中断前已经生成的内容")
       )
-    );
+    ).toBe(true);
+    expect(restored.messages.value.at(-1)?.status).toBe("stopped");
+    restored.dispose();
+  });
+
+  it("flushes the errored reply state even if the app immediately loses its renderer", async () => {
+    const h = harness();
+    runningAssistant(h);
+    appendDelta(h, "失败前已经生成的内容", "error");
+    const sessionId = h.controller.sessionId.value;
     await settleCheckpoint();
     await h.store.dispose({ flush: false });
     const restored = reopen(h);
@@ -166,10 +146,10 @@ describe("conversation persistence during interruption", () => {
 
   it("waits for the final queued write before acknowledging a normal close", async () => {
     const h = harness();
-    await startRun(h);
-    delta(h, "正常关闭前的内容");
+    runningAssistant(h);
+    appendDelta(h, "正常关闭前的内容");
     await vi.advanceTimersByTimeAsync(300);
-    delta(h, "最后一段待保存内容");
+    appendDelta(h, "最后一段待保存内容", "stopped");
     let finish!: () => void;
     h.save.mockImplementationOnce(async (key, value) => {
       await new Promise<void>((resolve) => {
@@ -217,19 +197,16 @@ describe("conversation persistence during interruption", () => {
     await h.store.dispose({ flush: false });
   });
 
-  it("includes deltas still waiting for the next animation frame when closing", async () => {
+  it("includes history still waiting for the next animation frame when closing", async () => {
     const h = harness();
-    await startRun(h);
+    runningAssistant(h);
     await h.store.flushPersistence();
     vi.stubGlobal(
       "requestAnimationFrame",
       vi.fn(() => 1)
     );
     vi.stubGlobal("cancelAnimationFrame", vi.fn());
-    delta(h, "尚未绘制的最后一段");
-    expect(
-      h.controller.messages.value.some((m) => m.content.includes("尚未绘制"))
-    ).toBe(false);
+    appendDelta(h, "尚未绘制的最后一段");
     await h.close();
     const restored = reopen(h);
     expect(
@@ -243,10 +220,10 @@ describe("conversation persistence during interruption", () => {
 
   it("loads the final pending snapshot when a conversation is immediately closed and reopened", async () => {
     const h = harness();
-    await startRun(h);
-    delta(h, "关闭前已经保存的内容");
+    runningAssistant(h);
+    appendDelta(h, "关闭前已经保存的内容");
     await h.store.flushPersistence();
-    delta(h, "尚在队列中的最新内容");
+    appendDelta(h, "尚在队列中的最新内容");
     h.store.removeController("book:interruption");
     const restored = useAgentConversation({
       api: () => undefined,

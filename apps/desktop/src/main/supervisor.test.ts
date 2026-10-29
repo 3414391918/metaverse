@@ -1,11 +1,6 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createEnvelope,
-  type CommandEnvelope,
-  type UtilityInternalCommandTarget,
-  type UtilityWorkerName
-} from "@deepwrite/contracts";
+import { createEnvelope } from "@deepwrite/contracts";
 
 const electronMocks = vi.hoisted(() => ({
   fork: vi.fn()
@@ -17,18 +12,15 @@ vi.mock("electron", () => ({
   }
 }));
 
-import { UtilitySupervisor, type UtilitySupervisorOptions } from "./supervisor";
+import { UtilitySupervisor } from "./supervisor";
 
 class FakeUtilityProcess extends EventEmitter {
   readonly posted: unknown[] = [];
   readonly pid: number;
+  exitCode: number | null | undefined;
   private exited = false;
 
-  constructor(
-    readonly worker: UtilityWorkerName,
-    pid: number,
-    private readonly activity: string[]
-  ) {
+  constructor(pid: number) {
     super();
     this.pid = pid;
   }
@@ -36,13 +28,30 @@ class FakeUtilityProcess extends EventEmitter {
   postMessage(message: unknown): void {
     this.posted.push(message);
     const kind = (message as { kind?: string }).kind ?? "unknown";
-    this.activity.push(`${this.worker}:${kind}`);
+    if (kind === "utility.health.request") {
+      const requestId = (message as { requestId: string }).requestId;
+      queueMicrotask(() => {
+        this.emit("message", {
+          kind: "utility.health",
+          worker: "core",
+          requestId,
+          payload: {
+            name: "core",
+            status: "ok",
+            pid: this.pid,
+            startedAt: new Date().toISOString(),
+            lastHeartbeatAt: new Date().toISOString(),
+            details: {}
+          }
+        });
+      });
+    }
     if (kind === "utility.shutdown") {
       const requestId = (message as { requestId: string }).requestId;
       queueMicrotask(() => {
         this.emit("message", {
           kind: "utility.shutdown_ack",
-          worker: this.worker,
+          worker: "core",
           requestId,
           timestamp: new Date().toISOString()
         });
@@ -65,6 +74,7 @@ class FakeUtilityProcess extends EventEmitter {
       return;
     }
     this.exited = true;
+    this.exitCode = code;
     this.emit("exit", code);
   }
 }
@@ -75,328 +85,203 @@ async function flushMicrotasks(): Promise<void> {
   }
 }
 
-describe("UtilitySupervisor internal command bridge", () => {
-  const processes = new Map<UtilityWorkerName, FakeUtilityProcess>();
-  const activity: string[] = [];
+describe("UtilitySupervisor (Core only)", () => {
   const supervisors: UtilitySupervisor[] = [];
-  let nextPid = 10_000;
+  let child: FakeUtilityProcess | undefined;
 
   beforeEach(() => {
-    processes.clear();
-    activity.length = 0;
-    nextPid = 10_000;
     electronMocks.fork.mockReset();
-    electronMocks.fork.mockImplementation(
-      (
-        _entryPath: string,
-        _args: string[],
-        options: { serviceName: string; env?: NodeJS.ProcessEnv }
-      ) => {
-        const worker = options.serviceName.replace(
-          "deepwrite-",
-          ""
-        ) as UtilityWorkerName;
-        const child = new FakeUtilityProcess(worker, nextPid, activity);
-        nextPid += 1;
-        processes.set(worker, child);
-        return child;
-      }
-    );
+    electronMocks.fork.mockImplementation(() => {
+      child = new FakeUtilityProcess(10_000);
+      return child;
+    });
   });
 
   afterEach(async () => {
     await Promise.all(
       supervisors.splice(0).map((supervisor) => supervisor.shutdownAll())
     );
+    child = undefined;
   });
 
-  function createSupervisor(
-    internalCommandAllowlist?: UtilitySupervisorOptions["internalCommandAllowlist"],
-    internalCommandAuthorize?: UtilitySupervisorOptions["internalCommandAuthorize"]
-  ): UtilitySupervisor {
+  function createSupervisor(): UtilitySupervisor {
     const supervisor = new UtilitySupervisor({
       onUtilityEvent: vi.fn(),
       onUnexpectedExit: vi.fn(),
-      onWorkerRestarted: vi.fn(),
-      ...(internalCommandAllowlist ? { internalCommandAllowlist } : {}),
-      ...(internalCommandAuthorize ? { internalCommandAuthorize } : {})
+      onWorkerRestarted: vi.fn()
     });
     supervisors.push(supervisor);
-    supervisor.startAll();
     return supervisor;
   }
 
-  it("starts utility workers with the current process environment", () => {
-    createSupervisor();
-    expect(electronMocks.fork).toHaveBeenCalled();
-    for (const [, , options] of electronMocks.fork.mock.calls) {
-      expect(options.env).toEqual(expect.objectContaining(process.env));
+  it("forks exactly one utility process: the Core entry", () => {
+    const supervisor = createSupervisor();
+    supervisor.startAll();
+    expect(electronMocks.fork).toHaveBeenCalledTimes(1);
+    const [entryPath, , options] = electronMocks.fork.mock.calls[0] as [
+      string,
+      unknown[],
+      { serviceName: string; env?: NodeJS.ProcessEnv }
+    ];
+    expect(entryPath.endsWith("utilities/core-entry.js")).toBe(true);
+    expect(options.serviceName).toBe("deepwrite-core");
+    expect(options.env).toEqual(expect.objectContaining(process.env));
+  });
+
+  it("never forks a removed Agent or Tool worker across full lifecycle restarts", async () => {
+    const supervisor = createSupervisor();
+    supervisor.startAll();
+    // A network-proxy style preference change no longer restarts any worker,
+    // but even explicit core restarts must never fork an agent or tool entry.
+    await supervisor.restartWorker("core", "network-proxy-preference");
+    await supervisor.restartWorker("core", "unexpected-exit");
+    supervisor.startAll();
+    await supervisor.shutdownAll();
+    await flushMicrotasks();
+    for (const [entryPath, , options] of electronMocks.fork.mock.calls as [
+      string,
+      unknown[],
+      { serviceName: string }
+    ][]) {
+      expect(entryPath.endsWith("core-entry.js")).toBe(true);
+      expect(options.serviceName).toBe("deepwrite-core");
     }
   });
 
-  function dispatchInternalRequest(
-    target: UtilityInternalCommandTarget,
-    command: CommandEnvelope,
-    requestId = `bridge_${command.id}`,
-    timeoutMs = 1_000
-  ): void {
-    processes.get("agent")!.dispatch({
-      kind: "utility.internal.command.request",
-      worker: "agent",
-      target,
-      requestId,
-      parentRequestId: "agent_prompt_transport",
-      timeoutMs,
-      command
+  it("collects health for the single Core worker only", async () => {
+    const supervisor = createSupervisor();
+    supervisor.startAll();
+    child!.dispatch({
+      kind: "utility.ready",
+      worker: "core",
+      pid: child!.pid,
+      startedAt: new Date().toISOString()
     });
-  }
+    const health = await supervisor.collectHealth();
+    expect(health.status).toBe("ok");
+    expect(health.workers).toHaveLength(1);
+    expect(health.workers[0]).toMatchObject({
+      name: "core",
+      status: "ok",
+      pid: child!.pid
+    });
+  });
 
-  it("routes an allowlisted Agent request through Core and correlates its result", async () => {
-    createSupervisor({ core: ["system.health"] });
-    const command = createEnvelope(
-      "system.health",
-      {},
-      { id: "internal_health" }
-    );
-
-    dispatchInternalRequest("core", command);
-
-    const targetRequest = processes
-      .get("core")!
-      .posted.find(
-        (message) =>
-          (message as { kind?: string }).kind === "utility.command.request"
-      ) as { requestId: string; command: CommandEnvelope } | undefined;
-    expect(targetRequest?.command.id).toBe(command.id);
-
-    processes.get("core")!.dispatch({
+  it("routes a command to Core and correlates the result", async () => {
+    const supervisor = createSupervisor();
+    supervisor.startAll();
+    const command = createEnvelope("system.health", {}, { id: "cmd_core" });
+    const pending = supervisor.requestCommand("core", command);
+    const request = child!.posted.find(
+      (message) =>
+        (message as { kind?: string }).kind === "utility.command.request"
+    ) as { requestId: string } | undefined;
+    expect(request?.requestId).toBe(command.id);
+    child!.dispatch({
       kind: "utility.command.result",
       worker: "core",
-      requestId: targetRequest!.requestId,
-      result: {
-        status: "accepted",
-        requestId: command.id,
-        payload: { status: "ok" }
-      }
+      requestId: command.id,
+      result: { status: "accepted", requestId: command.id, payload: {} }
     });
-    await flushMicrotasks();
-
-    expect(processes.get("agent")!.posted).toContainEqual({
-      kind: "utility.internal.command.result",
-      worker: "agent",
-      target: "core",
-      requestId: `bridge_${command.id}`,
-      parentRequestId: "agent_prompt_transport",
-      result: {
-        status: "accepted",
-        requestId: command.id,
-        payload: { status: "ok" }
-      }
+    expect(await pending).toMatchObject({
+      status: "accepted",
+      requestId: command.id
     });
   });
 
-  it("denies dangerous commands by default without forwarding them", () => {
-    const authorize = vi.fn(() => true);
-    createSupervisor(undefined, authorize);
-    const command = createEnvelope(
-      "catalog.deleteProject",
-      { domain: "book" as const, projectId: "book-dangerous" },
-      { id: "internal_delete_project" }
-    );
-
-    dispatchInternalRequest("core", command);
-
-    expect(
-      processes
-        .get("core")!
-        .posted.some(
-          (message) =>
-            (message as { kind?: string }).kind === "utility.command.request"
-        )
-    ).toBe(false);
-    expect(processes.get("agent")!.posted).toContainEqual(
-      expect.objectContaining({
-        kind: "utility.internal.command.result",
-        requestId: `bridge_${command.id}`,
-        result: expect.objectContaining({
-          status: "rejected",
-          requestId: command.id,
-          error: expect.objectContaining({
-            code: "utility.internal_command_not_allowed"
-          })
-        })
-      })
-    );
-    expect(authorize).not.toHaveBeenCalled();
-  });
-
-  it("runs the dynamic authorizer after allowlist and rejects before forwarding", () => {
-    const authorize = vi.fn(
-      (): ReturnType<
-        NonNullable<UtilitySupervisorOptions["internalCommandAuthorize"]>
-      > => ({
-        authorized: false,
-        code: "main.run_not_accepted",
-        message: "The run has not completed the Main acceptance chain."
-      })
-    );
-    createSupervisor({ core: ["system.health"] }, authorize);
-    const command = createEnvelope(
-      "system.health",
-      {},
-      { id: "internal_dynamic_denial" }
-    );
-
-    dispatchInternalRequest("core", command);
-
-    expect(authorize).toHaveBeenCalledWith({
-      source: "agent",
-      target: "core",
-      message: expect.objectContaining({
-        command,
-        parentRequestId: "agent_prompt_transport"
-      })
+  it("rejects commands addressed to a removed worker without forking", async () => {
+    const supervisor = createSupervisor();
+    supervisor.startAll();
+    const command = createEnvelope("system.health", {}, { id: "cmd_ghost" });
+    const result = await supervisor.requestCommand("agent" as never, command);
+    expect(result).toMatchObject({
+      status: "rejected",
+      error: { code: "utility.unknown_worker" }
     });
-    expect(
-      processes
-        .get("core")!
-        .posted.some(
-          (message) =>
-            (message as { kind?: string }).kind === "utility.command.request"
-        )
-    ).toBe(false);
-    expect(processes.get("agent")!.posted).toContainEqual(
-      expect.objectContaining({
-        kind: "utility.internal.command.result",
-        requestId: `bridge_${command.id}`,
-        result: {
-          status: "rejected",
-          requestId: command.id,
-          error: {
-            code: "utility.internal_command_unauthorized",
-            message: "The run has not completed the Main acceptance chain.",
-            details: {
-              authorizationCode: "main.run_not_accepted"
-            }
-          }
-        }
-      })
-    );
+    expect(electronMocks.fork).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects a target timeout and ignores a late result", async () => {
-    createSupervisor({ tool: ["system.health"] });
-    const command = createEnvelope(
-      "system.health",
-      {},
-      { id: "internal_timeout" }
-    );
-
-    dispatchInternalRequest("tool", command, `bridge_${command.id}`, 5);
-    const targetRequest = processes
-      .get("tool")!
-      .posted.find(
-        (message) =>
-          (message as { kind?: string }).kind === "utility.command.request"
-      ) as { requestId: string } | undefined;
-    await new Promise((resolve) => setTimeout(resolve, 15));
-    await flushMicrotasks();
-
-    const agentResultsBeforeLateMessage = processes
-      .get("agent")!
-      .posted.filter(
-        (message) =>
-          (message as { kind?: string }).kind ===
-          "utility.internal.command.result"
-      );
-    expect(agentResultsBeforeLateMessage).toContainEqual(
-      expect.objectContaining({
-        requestId: `bridge_${command.id}`,
-        result: expect.objectContaining({
-          status: "rejected",
-          error: expect.objectContaining({
-            code: "utility.internal_command_timeout"
-          })
-        })
-      })
-    );
-
-    processes.get("tool")!.dispatch({
-      kind: "utility.command.result",
-      worker: "tool",
-      requestId: targetRequest!.requestId,
-      result: {
-        status: "accepted",
-        requestId: command.id,
-        payload: {}
-      }
+  it("rejects duplicate pending commands for Core", async () => {
+    const supervisor = createSupervisor();
+    supervisor.startAll();
+    const command = createEnvelope("system.health", {}, { id: "cmd_dup" });
+    void supervisor.requestCommand("core", command).catch(() => undefined);
+    const duplicate = await supervisor.requestCommand("core", command);
+    expect(duplicate).toMatchObject({
+      status: "rejected",
+      error: { code: "utility.duplicate_command" }
     });
-    await flushMicrotasks();
-    expect(
-      processes
-        .get("agent")!
-        .posted.filter(
-          (message) =>
-            (message as { kind?: string }).kind ===
-            "utility.internal.command.result"
-        )
-    ).toHaveLength(agentResultsBeforeLateMessage.length);
   });
 
-  it("settles a pending bridge when its target exits", async () => {
-    createSupervisor({ core: ["system.health"] });
-    const command = createEnvelope(
-      "system.health",
-      {},
-      { id: "internal_target_exit" }
+  it("broadcasts worker events from Core", () => {
+    const onUtilityEvent = vi.fn();
+    const supervisor = new UtilitySupervisor({
+      onUtilityEvent,
+      onUnexpectedExit: vi.fn(),
+      onWorkerRestarted: vi.fn()
+    });
+    supervisors.push(supervisor);
+    supervisor.startAll();
+    const event = createEnvelope(
+      "system.worker_restarted",
+      {
+        worker: "core",
+        reason: "exit:11",
+        restartedAt: new Date().toISOString()
+      },
+      { id: "evt_restart_broadcast" }
     );
-
-    dispatchInternalRequest("core", command);
-    processes.get("core")!.exit(9);
-    await flushMicrotasks();
-
-    expect(processes.get("agent")!.posted).toContainEqual(
-      expect.objectContaining({
-        kind: "utility.internal.command.result",
-        requestId: `bridge_${command.id}`,
-        result: expect.objectContaining({
-          status: "rejected",
-          error: expect.objectContaining({
-            code: "utility.internal_command_target_exited"
-          })
-        })
-      })
+    child!.dispatch({
+      kind: "utility.command.event",
+      worker: "core",
+      requestId: "evt_restart_broadcast",
+      event
+    });
+    expect(onUtilityEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "system.worker_restarted" }),
+      "core"
     );
   });
 
-  it("cancels bridges, stops Agent first, then stops Tool and Core", async () => {
-    const supervisor = createSupervisor({ core: ["system.health"] });
-    const command = createEnvelope(
-      "system.health",
-      {},
-      { id: "internal_shutdown" }
-    );
-    dispatchInternalRequest("core", command);
-
+  it("shuts the Core worker down through the graceful ack path", async () => {
+    const supervisor = createSupervisor();
+    supervisor.startAll();
     await supervisor.shutdownAll();
-
-    expect(processes.get("agent")!.posted).toContainEqual(
-      expect.objectContaining({
-        kind: "utility.internal.command.result",
-        requestId: `bridge_${command.id}`,
-        result: expect.objectContaining({
-          status: "rejected",
-          error: expect.objectContaining({
-            code: "utility.internal_command_cancelled"
-          })
-        })
-      })
+    await flushMicrotasks();
+    expect(child!.posted).toContainEqual(
+      expect.objectContaining({ kind: "utility.shutdown" })
     );
-    const agentShutdownIndex = activity.indexOf("agent:utility.shutdown");
-    const toolShutdownIndex = activity.indexOf("tool:utility.shutdown");
-    const coreShutdownIndex = activity.indexOf("core:utility.shutdown");
-    expect(agentShutdownIndex).toBeGreaterThanOrEqual(0);
-    expect(toolShutdownIndex).toBeGreaterThan(agentShutdownIndex);
-    expect(coreShutdownIndex).toBeGreaterThan(agentShutdownIndex);
+    expect(child!.exitCode).toBe(0);
+  });
+
+  it("restarts Core after an unexpected exit and reports recovery", async () => {
+    vi.useFakeTimers();
+    try {
+      const onUnexpectedExit = vi.fn();
+      const onWorkerRestarted = vi.fn();
+      const supervisor = new UtilitySupervisor({
+        onUtilityEvent: vi.fn(),
+        onUnexpectedExit,
+        onWorkerRestarted
+      });
+      supervisors.push(supervisor);
+      supervisor.startAll();
+      const first = child!;
+      first.exit(11);
+      expect(onUnexpectedExit).toHaveBeenCalledWith("core", "exit:11");
+      await vi.advanceTimersByTimeAsync(300);
+      const restarted = child!;
+      expect(restarted).not.toBe(first);
+      expect(electronMocks.fork).toHaveBeenCalledTimes(2);
+      restarted.dispatch({
+        kind: "utility.ready",
+        worker: "core",
+        pid: restarted.pid,
+        startedAt: new Date().toISOString()
+      });
+      expect(onWorkerRestarted).toHaveBeenCalledWith("core", "exit:11");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

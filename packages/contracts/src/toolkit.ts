@@ -124,7 +124,13 @@ export const ToolkitAddIllustrationInputSchema = z
   })
   .strict();
 export const ToolkitIllustrationReferencesInputSchema = z
-  .object({ chapterCardId: LongChapterCardIdSchema })
+  .object({
+    chapterCardId: LongChapterCardIdSchema,
+    query: z.string().trim().min(1).max(100).optional(),
+    order: z.enum(["asc", "desc"]).default("desc"),
+    offset: z.number().int().nonnegative().default(0),
+    limit: z.number().int().min(1).max(30).default(6)
+  })
   .strict();
 export const ToolkitDeleteIllustrationInputSchema = z
   .object({

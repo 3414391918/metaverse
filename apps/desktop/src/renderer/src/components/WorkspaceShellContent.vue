@@ -31,7 +31,6 @@ function bindDesktopShell(element: Element | ComponentPublicInstance | null) {
     @update-language="shell.updateAppLanguage"
     @update-show-context-usage="shell.updateShowContextUsage"
     @update-show-in-menu-bar="shell.updateShowInMenuBar"
-    @update-use-network-proxy="shell.updateUseNetworkProxy"
     @update-workspace-pane-layout="shell.updateWorkspacePaneLayout"
     @update-body-text-format="shell.updateBodyTextFormat"
     @retry-long-agents="shell.loadLongAgentSettings"

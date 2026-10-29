@@ -35,7 +35,6 @@ describe("GeneralSettingsStore", () => {
       autoApproveCrossStageOperations: true,
       autoSave: true,
       showContextUsage: true,
-      useNetworkProxy: false,
       defaultTextViewMode: "edit"
     });
   });
@@ -50,7 +49,6 @@ describe("GeneralSettingsStore", () => {
       language: "zh-CN" as const,
       showInMenuBar: false,
       showContextUsage: false,
-      useNetworkProxy: true,
       workspacePaneLayout: "editor-agent" as const,
       defaultTextViewMode: "preview" as const
     };
@@ -68,6 +66,21 @@ describe("GeneralSettingsStore", () => {
         await readFile(join(root, "config", "general-settings.json"), "utf8")
       )
     ).toEqual({ version: 2, ...settings });
+  });
+
+  it("removes the retired proxy switch from saved settings", async () => {
+    const { root, store } = await createStore();
+    const settings = createDefaultGeneralSettings();
+    await mkdir(join(root, "config"));
+    await writeFile(
+      store.settingsPath,
+      JSON.stringify({ version: 2, ...settings, useNetworkProxy: false })
+    );
+
+    expect((await store.list()).settings).toEqual(settings);
+    expect(
+      JSON.parse(await readFile(store.settingsPath, "utf8"))
+    ).not.toHaveProperty("useNetworkProxy");
   });
 
   it("preserves older view preferences and persists independent body formats across restart", async () => {
@@ -121,7 +134,6 @@ describe("GeneralSettingsStore", () => {
         language: "zh-CN",
         showInMenuBar: false,
         showContextUsage: true,
-        useNetworkProxy: false,
         workspacePaneLayout: "agent-editor",
         defaultTextViewMode: "edit",
         bodyTextFormats: createDefaultGeneralSettings().bodyTextFormats

@@ -165,7 +165,7 @@ try {
           event.type === (scenario === "startup" ? "module-pending" : "ready")
       ),
     30_000,
-    "renderer and three utilities ready"
+    "renderer and Core utility ready"
   );
   const started = Date.now();
   if (scenario === "startup")
@@ -206,7 +206,7 @@ try {
   }
   assert.deepEqual(
     events.find((event) => event.type === "quit"),
-    { type: "quit", code: 0, forks: 3 }
+    { type: "quit", code: 0, forks: 1 }
   );
   // Reopen through a new Electron Core/worker after every development process
   // has exited; a successful in-memory read cannot satisfy this assertion.

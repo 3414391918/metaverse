@@ -1,24 +1,5 @@
-import { createConversationTestApi } from "./conversationTestApi";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { reactive } from "vue";
-import {
-  DEFAULT_LIBRARY_AGENT_SETTINGS,
-  DEFAULT_LONG_AGENT_SETTINGS,
-  DEFAULT_LONG_AGENT_TEAM_SETTINGS,
-  createDefaultAppearanceSettings,
-  createEmptyLongMarkdownFileReference,
-  createShortWorkspaceContentRevision,
-  createEnvelope,
-  longCharacterCoreProfileFileId,
-  longCharacterFilePath,
-  longWorldbuildingItemContentPath,
-  longWorldbuildingItemFileId,
-  type DeepWriteApi,
-  type ModelSettings,
-  type SessionAbortCommandPayload,
-  type SessionPromptAcceptedPayload,
-  type SessionPromptCommandPayload
-} from "@deepwrite/contracts";
+import type { DeepWriteApi } from "@deepwrite/contracts/renderer";
 import {
   mergeAgentConversationPersistenceSnapshots,
   useAgentConversation,
@@ -40,85 +21,6 @@ const document: WorkspaceDocument = {
   format: "正文",
   content: "雨是在午夜以后落下来的。"
 };
-
-const runtime = {
-  provider: "deepwrite",
-  model: "deepwrite-writing-faux",
-  mode: "local-faux" as const
-};
-
-function createDeferredApi(): {
-  api: DeepWriteApi;
-  prompts: SessionPromptCommandPayload[];
-  aborts: SessionAbortCommandPayload[];
-  resolveAccepted(index: number, payload: SessionPromptAcceptedPayload): void;
-  rejectPrompt(index: number, error: Error): void;
-  promptCount(): number;
-} {
-  const pending: Array<{
-    resolve(payload: SessionPromptAcceptedPayload): void;
-    reject(error: Error): void;
-  }> = [];
-  const queuedPromptResults = new Map<
-    number,
-    | { status: "accepted"; payload: SessionPromptAcceptedPayload }
-    | { status: "rejected"; error: Error }
-  >();
-  const prompts: SessionPromptCommandPayload[] = [];
-  const aborts: SessionAbortCommandPayload[] = [];
-  const api: DeepWriteApi = createConversationTestApi({
-    prompt(payload) {
-      const index = prompts.length;
-      prompts.push(payload);
-      return new Promise<SessionPromptAcceptedPayload>((resolve, reject) => {
-        pending[index] = { resolve, reject };
-        const queued = queuedPromptResults.get(index);
-        if (!queued) return;
-        queuedPromptResults.delete(index);
-        if (queued.status === "accepted") resolve(queued.payload);
-        else reject(queued.error);
-      });
-    },
-    async abort(payload) {
-      aborts.push(payload);
-      return {
-        ...payload,
-        abortedAt: new Date().toISOString()
-      };
-    },
-    async submitUserInput(payload) {
-      return {
-        sessionId: payload.sessionId,
-        runId: payload.runId,
-        requestId: payload.requestId,
-        resolvedAt: new Date().toISOString()
-      };
-    }
-  });
-  return {
-    api,
-    prompts,
-    aborts,
-    resolveAccepted(index, payload) {
-      const request = pending[index];
-      if (request) request.resolve(payload);
-      else queuedPromptResults.set(index, { status: "accepted", payload });
-    },
-    rejectPrompt(index, error) {
-      const request = pending[index];
-      if (request) request.reject(error);
-      else queuedPromptResults.set(index, { status: "rejected", error });
-    },
-    promptCount: () => prompts.length
-  };
-}
-
-function eventOptions(sessionId: string, runId: string, id: string) {
-  return {
-    id,
-    context: { correlationId: "cmd_1", sessionId, runId }
-  };
-}
 
 function createMemoryStorage(): {
   options(
@@ -230,29 +132,14 @@ afterEach(() => {
 });
 
 export {
-  DEFAULT_LIBRARY_AGENT_SETTINGS,
-  DEFAULT_LONG_AGENT_SETTINGS,
-  DEFAULT_LONG_AGENT_TEAM_SETTINGS,
   afterEach,
-  createDefaultAppearanceSettings,
-  createDeferredApi,
   createEditProposal,
-  createEmptyLongMarkdownFileReference,
-  createEnvelope,
   createMemoryStorage,
-  createShortWorkspaceContentRevision,
   describe,
   document,
-  eventOptions,
   expect,
   it,
-  longCharacterCoreProfileFileId,
-  longCharacterFilePath,
-  longWorldbuildingItemContentPath,
-  longWorldbuildingItemFileId,
   mergeAgentConversationPersistenceSnapshots,
-  reactive,
-  runtime,
   storedConversation,
   useAgentConversation,
   vi
@@ -262,10 +149,6 @@ export type {
   AgentConversationPersistenceSnapshot,
   AgentEditProposal,
   DeepWriteApi,
-  ModelSettings,
-  SessionAbortCommandPayload,
-  SessionPromptAcceptedPayload,
-  SessionPromptCommandPayload,
   UseAgentConversationOptions,
   WorkspaceDocument
 };

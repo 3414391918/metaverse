@@ -1,16 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { ModelConfig } from "@deepwrite/contracts/renderer";
-import { useConversationModelOptions } from "../composables/useConversationModelOptions";
-import composerSource from "./ConversationComposer.vue?raw";
-import composerLogicSource from "../composables/useConversationComposer.ts?raw";
-import modelConfigSource from "./ConversationModelConfigSelect.vue?raw";
 import messageListSource from "./ConversationMessageList.vue?raw";
 import processingTimelineSource from "./ConversationProcessingTimeline.vue?raw";
 import subagentSource from "./SubagentRunList.vue?raw";
 import clockSource from "./ConversationRunClock.vue?raw";
 import detailsSource from "./ConversationDetails.vue?raw";
 import scrollSource from "../composables/useConversationScrollFollow.ts?raw";
-import modelOptionsSource from "../composables/useConversationModelOptions.ts?raw";
 
 describe("conversation view behavior", () => {
   it("does not rewrite the conversation scroll position for status-only proposal updates", () => {
@@ -74,71 +68,6 @@ describe("conversation view behavior", () => {
     );
   });
 
-  it("only lists configured models in the composer model selector", () => {
-    const options = {
-      models: [],
-      selectedModelId: "",
-      thinkingLevel: "off" as const,
-      approvalMode: "request-approval" as const
-    };
-    expect(useConversationModelOptions(options).modelOptions.value).toEqual([]);
-    const models = (
-      [
-        { id: "free", managedBy: "deepwrite-free" },
-        { id: "custom-first", provider: "openai" },
-        { id: "deepwrite-site-official-example", provider: "deepwrite-site" },
-        { id: "custom-second", provider: "provider-b" },
-        { id: "legacy-official", managedBy: "deepwrite-official" }
-      ] as const
-    ).map((model): ModelConfig => ({
-      label: model.id,
-      modelId: model.id,
-      provider: "example",
-      api: "openai-completions",
-      baseUrl: "https://models.example.test/v1",
-      reasoning: false,
-      defaultThinkingLevel: "off",
-      thinkingLevelOptions: ["low", "medium", "high"],
-      temperatureOptions: [0.1, 0.7, 1],
-      hasApiKey: true,
-      ...model
-    }));
-    const result = useConversationModelOptions({ ...options, models });
-    expect(
-      result.modelOptions.value.map(({ value, providerLabel }) => [
-        value,
-        providerLabel
-      ])
-    ).toEqual([
-      ["deepwrite-site-official-example", "官方小站"],
-      ["legacy-official", "官方小站"],
-      ["custom-first", "OpenAI"],
-      ["custom-second", "provider-b"],
-      ["free", "免费模型"]
-    ]);
-    expect(composerSource).toContain(':model-options="modelOptions"');
-    expect(modelConfigSource).toContain('?.label ?? "选择模型"');
-    expect(`${modelOptionsSource}\n${composerSource}`).not.toContain(
-      '{ value: "", label: "DeepWrite Faux" }'
-    );
-  });
-
-  it("offers configured thinking levels even when non-thinking parameters were configured last", () => {
-    const optionsStart = modelOptionsSource.indexOf(
-      "const availableThinkingOptions"
-    );
-    const optionsEnd = modelOptionsSource.indexOf(
-      "const modelOptions",
-      optionsStart
-    );
-    const optionsBlock = modelOptionsSource.slice(optionsStart, optionsEnd);
-
-    expect(optionsBlock).toContain(
-      "selectedModel.value.thinkingLevelOptions.map"
-    );
-    expect(optionsBlock).not.toContain("selectedModel.value.reasoning");
-  });
-
   it("shows the processed timer from the streaming assistant, not a list placeholder", () => {
     expect(messageListSource).not.toContain("hasStreamingAssistant");
     expect(messageListSource).not.toContain("正在思考");
@@ -166,9 +95,8 @@ describe("conversation view behavior", () => {
     expect(detailsSource).toContain('<slot v-if="open" />');
   });
 
-  it("keeps focus and keyboard handling within the reusable composer", () => {
-    expect(composerSource).toContain("defineExpose({ focusInput })");
-    expect(composerLogicSource).toContain("function focusInput");
-    expect(composerLogicSource).toContain("input.focus()");
+  it("does not expose legacy resend controls in the history list", () => {
+    expect(messageListSource).not.toContain("submitEditedMessage");
+    expect(messageListSource).not.toContain("canRewriteHistory");
   });
 });

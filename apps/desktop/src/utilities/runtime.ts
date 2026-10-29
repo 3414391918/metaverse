@@ -6,46 +6,17 @@ import {
   type CommandEnvelope,
   type CommandResult,
   type SystemEventEnvelope,
-  type UtilityInternalCommandTarget,
   type UtilityWorkerName
 } from "@deepwrite/contracts";
-import { createId } from "@deepwrite/shared";
 import { createUtilityLifecycle } from "./utility-lifecycle";
-
-const DEFAULT_INTERNAL_COMMAND_TIMEOUT_MS = 60_000;
-const INTERNAL_COMMAND_RESPONSE_GRACE_MS = 250;
-const MAX_PENDING_INTERNAL_COMMANDS = 32;
-
-export interface UtilityInternalCommandOptions {
-  timeoutMs?: number;
-}
-
-export interface UtilityCommandHandlerContext {
-  worker: UtilityWorkerName;
-  requestId: string;
-  requestInternalCommand(
-    target: UtilityInternalCommandTarget,
-    command: CommandEnvelope,
-    options?: UtilityInternalCommandOptions
-  ): Promise<CommandResult>;
-}
 
 export interface UtilityRuntimeOptions {
   mode?: string;
   commandHandler?: (
     command: CommandEnvelope,
-    emitEvent: (event: SystemEventEnvelope) => void,
-    context?: UtilityCommandHandlerContext
+    emitEvent: (event: SystemEventEnvelope) => void
   ) => Promise<CommandResult> | CommandResult;
   onShutdown?: () => Promise<void> | void;
-}
-
-interface PendingInternalCommand {
-  commandId: string;
-  parentRequestId: string;
-  target: UtilityInternalCommandTarget;
-  resolve(result: CommandResult): void;
-  timer: NodeJS.Timeout;
 }
 
 function unwrapMessage(message: unknown): unknown {
@@ -61,21 +32,6 @@ function safeErrorDetails(error: unknown): Record<string, unknown> {
   };
 }
 
-function rejectedCommandResult(
-  commandId: string,
-  code: string,
-  message: string
-): CommandResult {
-  return {
-    status: "rejected",
-    requestId: commandId,
-    error: {
-      code,
-      message
-    }
-  };
-}
-
 export function bootUtility(
   worker: UtilityWorkerName,
   options: UtilityRuntimeOptions = {}
@@ -88,7 +44,6 @@ export function bootUtility(
   }
 
   const activeCommands = new Set<Promise<void>>();
-  const pendingInternalCommands = new Map<string, PendingInternalCommand>();
 
   const post = (message: unknown): void => {
     port.postMessage(UtilityOutboundMessageSchema.parse(message));
@@ -97,11 +52,7 @@ export function bootUtility(
   const lifecycle = createUtilityLifecycle(worker, {
     mode: options.mode,
     post,
-    onStopping: () =>
-      rejectPendingInternalCommands(
-        "utility.internal_command_cancelled",
-        `${worker} utility is shutting down.`
-      ),
+    onStopping: () => undefined,
     async drain() {
       await Promise.allSettled([...activeCommands]);
       await options.onShutdown?.();
@@ -127,121 +78,6 @@ export function bootUtility(
           message,
           ...(details ? { details } : {})
         }
-      }
-    });
-  };
-
-  const settleInternalCommand = (
-    requestId: string,
-    result: CommandResult
-  ): void => {
-    const pending = pendingInternalCommands.get(requestId);
-    if (!pending) {
-      return;
-    }
-    clearTimeout(pending.timer);
-    pendingInternalCommands.delete(requestId);
-    pending.resolve(result);
-  };
-
-  const rejectPendingInternalCommands = (
-    code: string,
-    message: string
-  ): void => {
-    for (const [requestId, pending] of pendingInternalCommands) {
-      settleInternalCommand(
-        requestId,
-        rejectedCommandResult(pending.commandId, code, message)
-      );
-    }
-  };
-
-  const requestInternalCommand = (
-    parentRequestId: string,
-    target: UtilityInternalCommandTarget,
-    command: CommandEnvelope,
-    requestOptions?: UtilityInternalCommandOptions
-  ): Promise<CommandResult> => {
-    if (worker !== "agent") {
-      return Promise.resolve(
-        rejectedCommandResult(
-          command.id,
-          "utility.internal_command_forbidden",
-          `${worker} utility cannot request internal utility commands.`
-        )
-      );
-    }
-    if (lifecycle.isShuttingDown()) {
-      return Promise.resolve(
-        rejectedCommandResult(
-          command.id,
-          "utility.shutting_down",
-          `${worker} utility is shutting down.`
-        )
-      );
-    }
-    if (pendingInternalCommands.size >= MAX_PENDING_INTERNAL_COMMANDS) {
-      return Promise.resolve(
-        rejectedCommandResult(
-          command.id,
-          "utility.internal_command_limit",
-          "Too many internal utility commands are pending."
-        )
-      );
-    }
-
-    const timeoutMs =
-      requestOptions?.timeoutMs ?? DEFAULT_INTERNAL_COMMAND_TIMEOUT_MS;
-    if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120_000) {
-      return Promise.resolve(
-        rejectedCommandResult(
-          command.id,
-          "utility.internal_command_invalid_timeout",
-          "Internal utility command timeout must be between 1 and 120000 milliseconds."
-        )
-      );
-    }
-
-    const requestId = createId("internal_command");
-    return new Promise<CommandResult>((resolve) => {
-      const timer = setTimeout(() => {
-        settleInternalCommand(
-          requestId,
-          rejectedCommandResult(
-            command.id,
-            "utility.internal_command_timeout",
-            `${target} utility did not return an internal command result in time.`
-          )
-        );
-      }, timeoutMs + INTERNAL_COMMAND_RESPONSE_GRACE_MS);
-      timer.unref();
-      pendingInternalCommands.set(requestId, {
-        commandId: command.id,
-        parentRequestId,
-        target,
-        resolve,
-        timer
-      });
-
-      try {
-        post({
-          kind: "utility.internal.command.request",
-          worker,
-          target,
-          requestId,
-          parentRequestId,
-          timeoutMs,
-          command
-        });
-      } catch {
-        settleInternalCommand(
-          requestId,
-          rejectedCommandResult(
-            command.id,
-            "utility.internal_command_unavailable",
-            "Failed to request an internal utility command."
-          )
-        );
       }
     });
   };
@@ -272,21 +108,7 @@ export function bootUtility(
     try {
       const result = CommandResultSchema.parse(
         options.commandHandler
-          ? await options.commandHandler(command, emitEvent, {
-              worker,
-              requestId,
-              requestInternalCommand: (
-                target,
-                internalCommand,
-                requestOptions
-              ) =>
-                requestInternalCommand(
-                  requestId,
-                  target,
-                  internalCommand,
-                  requestOptions
-                )
-            })
+          ? await options.commandHandler(command, emitEvent)
           : {
               status: "rejected",
               requestId: command.id,
@@ -345,33 +167,6 @@ export function bootUtility(
     }
 
     const inbound = parsed.data;
-    if (inbound.kind === "utility.internal.command.result") {
-      if (worker !== inbound.worker) {
-        return;
-      }
-      const pending = pendingInternalCommands.get(inbound.requestId);
-      if (!pending) {
-        return;
-      }
-      if (
-        inbound.parentRequestId !== pending.parentRequestId ||
-        inbound.target !== pending.target ||
-        inbound.result.requestId !== pending.commandId
-      ) {
-        settleInternalCommand(
-          inbound.requestId,
-          rejectedCommandResult(
-            pending.commandId,
-            "utility.internal_command_invalid_result",
-            "Internal utility command result did not match the pending request."
-          )
-        );
-        return;
-      }
-      settleInternalCommand(inbound.requestId, inbound.result);
-      return;
-    }
-
     if (inbound.kind === "utility.health.request") {
       post({
         kind: "utility.health",

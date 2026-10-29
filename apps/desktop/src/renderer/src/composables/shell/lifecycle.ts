@@ -28,12 +28,6 @@ export function useShellLifecycle(ports: ShellRuntimePorts): LifecycleRuntime {
       stageLibraryEditProposal: deferShellAction(
         () => ports.proposals.stageLibraryEditProposal
       ),
-      allConversations: deferShellAction(
-        () => ports.conversations.allConversations
-      ),
-      scheduleQueuedAgentEdits: deferShellAction(
-        () => ports.proposals.scheduleQueuedAgentEdits
-      ),
       onAsyncError(error) {
         console.error(
           "DeepWrite long workspace proposal event could not be handled:",

@@ -11,11 +11,6 @@ import { ConversationDatabase } from "./conversation-storage/database";
 import { JsonNodes } from "./conversation-storage/json-nodes";
 import { createConversationHistoryWrite } from "../renderer/src/utils/conversationHistoryWriter";
 import { useAgentConversation } from "../renderer/src/composables/useAgentConversation";
-import {
-  createDeferredApi,
-  document,
-  runtime
-} from "../renderer/src/composables/useAgentConversation.test-support";
 const key = "conversation-history:integration-fixture";
 const date = "2026-09-11T00:00:00.000Z";
 const cleanup = [];
@@ -140,9 +135,8 @@ describe("controller → incremental writer → SQLite", () => {
       0
     );
   });
-  it("saves a user message before dispatch and resumes an uncertain save without duplicating it", async () => {
+  it("saves a user message and resumes an uncertain save without duplicating it", async () => {
     const { database, api } = await storage();
-    const model = createDeferredApi();
     const commit = api.commit;
     let loseReceipt = true;
     api.commit = async (batch) => {
@@ -156,46 +150,36 @@ describe("controller → incremental writer → SQLite", () => {
     let controller;
     const flush = flushing(api, () => controller);
     controller = useAgentConversation({
-      api: () => model.api,
+      api: () => undefined,
       flushPersistence: flush
     });
     cleanup.push(() => controller.dispose());
     controller.draft.value = "必须先保存的提问";
-    await controller.sendMessage(document);
-    expect(model.prompts).toHaveLength(0);
+    controller.messages.value.push({
+      id: "durable-user",
+      role: "user",
+      content: "必须先保存的提问",
+      createdAt: date
+    });
     const id = controller.messages.value[0].id;
+    // The uncertain save is retried through the same writer checkpoint.
+    await expect(flush()).rejects.toThrow("模拟提交成功但确认丢失");
     expect(full(database, controller.sessionId.value, id).content).toBe(
       "必须先保存的提问"
     );
-    expect(controller.draft.value).toBe("必须先保存的提问");
+    expect(
+      database.messages({ key, sessionId: controller.sessionId.value }).messages
+    ).toHaveLength(1);
     controller.draft.value = "修订后仍须先保存的提问";
-    const retry = controller.sendMessage(document);
-    await vi.waitFor(() => expect(model.prompts).toHaveLength(1));
+    controller.messages.value[0].content = "修订后仍须先保存的提问";
+    await flush();
     expect(full(database, controller.sessionId.value, id).content).toBe(
       "修订后仍须先保存的提问"
     );
     expect(
       database.messages({ key, sessionId: controller.sessionId.value }).messages
     ).toHaveLength(1);
-    model.resolveAccepted(0, {
-      sessionId: controller.sessionId.value,
-      runId: "run-durable-retry",
-      runtime,
-      acceptedAt: date
-    });
-    await retry;
-    await flush();
-    expect(
-      database.session({ key, sessionId: controller.sessionId.value })
-        ?.messageCount
-    ).toBe(2);
     expect(controller.messages.value[0]?.id).toBe(id);
-    expect(
-      full(database, controller.sessionId.value, "run-durable-retry_assistant")
-    ).toMatchObject({ role: "assistant", runId: "run-durable-retry" });
-    expect(full(database, controller.sessionId.value, id).content).toBe(
-      "修订后仍须先保存的提问"
-    );
   });
   it("retries the same partially committed multi-batch append and retains changes after its checkpoint", async () => {
     const { database, api } = await storage();
@@ -237,11 +221,10 @@ describe("controller → incremental writer → SQLite", () => {
   }, 20_000);
   it("rewrites a middle prompt while keeping its prefix and exact database order", async () => {
     const { database, api } = await storage();
-    const model = createDeferredApi();
     let controller;
     const flush = flushing(api, () => controller);
     controller = useAgentConversation({
-      api: () => model.api,
+      api: () => undefined,
       initialMessages: [
         message("u0", "前文问题", "user"),
         message("a0", "前文回答"),
@@ -252,27 +235,20 @@ describe("controller → incremental writer → SQLite", () => {
     });
     cleanup.push(() => controller.dispose());
     await flush();
-    const sending = controller.resendMessage(
-      { messageId: "u1", content: "修改后的问题" },
-      document
+    // A rewrite keeps the prefix, replaces the edited prompt and drops the
+    // superseded answer from the persisted order.
+    controller.messages.value.splice(
+      2,
+      2,
+      message("u1", "修改后的问题", "user")
     );
-    await vi.waitFor(() => expect(model.prompts).toHaveLength(1));
-    expect(
-      model.prompts[0]?.conversationHistory?.map((item) => item.content)
-    ).toEqual(["前文问题", "前文回答"]);
-    model.resolveAccepted(0, {
-      sessionId: controller.sessionId.value,
-      runId: "rewrite",
-      runtime,
-      acceptedAt: date
-    });
-    await sending;
+    await flush();
     const rows = database.messages({
       key,
       sessionId: controller.sessionId.value
     });
     expect(rows.messages.map((row) => row.messageId)).toEqual(
-      controller.messages.value.slice(0, -1).map((item) => item.id)
+      controller.messages.value.map((item) => item.id)
     );
     expect(rows.messages.map((row) => row.position)).toEqual([0, 1, 2]);
     expect(
@@ -282,12 +258,6 @@ describe("controller → incremental writer → SQLite", () => {
         controller.messages.value[2].id
       ).content
     ).toBe("修改后的问题");
-    await flush();
-    expect(
-      database
-        .messages({ key, sessionId: controller.sessionId.value })
-        .messages.map((row) => row.messageId)
-    ).toEqual(controller.messages.value.map((item) => item.id));
   });
   it("moves restored messages without overwriting unknown fields and does not re-put cloned history when switching", async () => {
     const { database, api } = await storage();

@@ -173,8 +173,6 @@ describe("conversation flush before close", () => {
     const coordinator = createGracefulShutdown({
       flushRenderer: () => write.promise,
       shutdownUtilities,
-      flushUsage: async () => undefined,
-      reportUsage: async () => undefined,
       complete,
       cancel: vi.fn()
     });

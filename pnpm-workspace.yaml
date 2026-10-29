@@ -3,8 +3,6 @@ packages:
   - packages/*
 
 catalog:
-  "@earendil-works/pi-agent-core": "0.85.0"
-  "@earendil-works/pi-ai": "0.85.0"
   "@eslint/js": "10.0.1"
   "@types/node": "26.0.1"
   "@vitejs/plugin-vue": "6.0.7"
@@ -39,13 +37,7 @@ allowBuilds:
   esbuild: true
   sharp: true
   electron-winstaller: false
-  # Slice 2 only uses Pi's local Faux provider; these transitive provider
-  # packages do not need install scripts for the desktop runtime.
+  # Transitive packages of the Harness runtime (@deepseek-ai/dsh) do not
+  # need install scripts for the packaged desktop runtime.
   "@google/genai": false
   protobufjs: false
-
-minimumReleaseAgeExclude:
-  - "@earendil-works/chord@0.85.0"
-  - "@earendil-works/pi-agent-core@0.85.0"
-  - "@earendil-works/pi-ai@0.85.0"
-  - "@earendil-works/pi-telemetry@0.85.0"

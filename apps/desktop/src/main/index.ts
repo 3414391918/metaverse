@@ -32,11 +32,6 @@ import { createDesktopStartup } from "./desktop-startup";
 import { electronRemoteFetch } from "./electron-remote-fetch";
 import { readExternalLibraryEntries } from "./external-library-import";
 import { createGracefulShutdown } from "./graceful-shutdown";
-import {
-  AGENT_CORE_QUERY_COMMANDS,
-  authorizeMainInternalCommand
-} from "./internal-command-authorizer";
-import type { ActiveRun } from "./ipc/command-types";
 import { disposeConversationExports } from "./ipc/conversation-export-commands";
 import { registerDesktopCommandIpc } from "./ipc/register-command-ipc";
 import { registerUpdateAlertIpc } from "./ipc/update-alert-ipc";
@@ -56,25 +51,18 @@ import { exportLongManuscript } from "./long-manuscript-export";
 import { createMainWindowStartupGate } from "./main-window-startup-gate";
 import { createMenuBarTray } from "./menu-bar-tray";
 import { applyNativeAppearanceChrome } from "./native-appearance-chrome";
-import { applyNetworkProxyPreference } from "./network-proxy-preference";
 import { createRendererStateFlushCoordinator } from "./renderer-state-flush";
 import { UtilitySupervisor } from "./supervisor";
 import { UpdateService } from "./update-service";
-import { type UsageRunContext } from "./usage-observation";
 import { createUtilityEventHandlers } from "./utility-event-handlers";
 registerAppearanceFontScheme();
 registerLongImageScheme();
 const desktopStartup = createDesktopStartup();
 let desktopServices: ReturnType<typeof createDesktopServices> | undefined;
-const activeRuns = new Map<string, ActiveRun>();
-const terminalRuns = new Set<string>();
-const pendingUsageContexts = new Map<string, UsageRunContext>();
-let smokeEventTap: ((event: SystemEventEnvelope) => void) | undefined;
 let mainWindow: BrowserWindow | undefined;
 let cachedAppearanceSettings: AppearanceSettings =
   createDefaultAppearanceSettings();
 let cachedGeneralSettings: GeneralSettings = createDefaultGeneralSettings();
-let utilitiesStarted = false;
 let nativeAppearanceListenerBound = false;
 let quitting = false;
 let shutdownComplete = false;
@@ -106,8 +94,6 @@ const gracefulShutdown = createGracefulShutdown({
     await stopAssistant();
     await supervisor.shutdownAll();
   },
-  flushUsage: () => undefined,
-  reportUsage: () => undefined,
   complete(installUpdate) {
     shutdownComplete = true;
     destroyMenuBarTray();
@@ -136,28 +122,15 @@ function beginGracefulShutdown(
 }
 const { handleUtilityEvent, handleUnexpectedExit, handleWorkerRestarted } =
   createUtilityEventHandlers({
-    activeRuns,
-    terminalRuns,
-    pendingUsageContexts,
-    broadcastEvent,
-    getModelUsageStore: () => undefined,
-    getSmokeEventTap: () => smokeEventTap
+    broadcastEvent
   });
 const supervisor = new UtilitySupervisor({
   onUtilityEvent: handleUtilityEvent,
   onUnexpectedExit: handleUnexpectedExit,
-  onWorkerRestarted: handleWorkerRestarted,
-  internalCommandAllowlist: {
-    core: AGENT_CORE_QUERY_COMMANDS
-  },
-  internalCommandAuthorize: (context) =>
-    authorizeMainInternalCommand(context, activeRuns)
+  onWorkerRestarted: handleWorkerRestarted
 });
 const announceReady = createDesktopReadyAnnouncer({
   supervisor,
-  setSmokeEventTap: (tap) => {
-    smokeEventTap = tap;
-  },
   quit: () => app.quit()
 });
 function createMainWindow(): BrowserWindow {
@@ -215,15 +188,8 @@ function showMainWindow(): void {
   mainWindow.focus();
 }
 function syncGeneralSettings(settings: GeneralSettings): void {
-  const shouldRestartAgent =
-    utilitiesStarted &&
-    cachedGeneralSettings.useNetworkProxy !== settings.useNetworkProxy;
   cachedGeneralSettings = settings;
   syncMenuBarTray();
-  applyNetworkProxyPreference(settings.useNetworkProxy);
-  if (shouldRestartAgent) {
-    void supervisor.restartWorker("agent", "network-proxy-preference");
-  }
 }
 const {
   requireChatAssistantProjectConfigStore,
@@ -290,10 +256,6 @@ function registerIpc(): void {
       dialog,
       continuationImportPreviews,
       legacySyncPreviews,
-      authorizeMainInternalCommand,
-      activeRuns,
-      pendingUsageContexts,
-      terminalRuns,
       requireChatAssistantProjectConfigStore,
       requireAgentTeamConfigStore,
       requireLibraryAgentConfigStore,
@@ -305,9 +267,7 @@ function registerIpc(): void {
       requireGeneralSettingsStore,
       requireFishAudioService,
       exportLongManuscript,
-      remoteFetch: cachedGeneralSettings.useNetworkProxy
-        ? fetch
-        : electronRemoteFetch,
+      remoteFetch: electronRemoteFetch,
       fishAudioFetch: electronRemoteFetch,
       rendererStateFlush,
       readExternalLibraryEntries,
@@ -325,7 +285,6 @@ function registerIpc(): void {
     })
   });
 }
-applyNetworkProxyPreference(false);
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
   shutdownComplete = true;
@@ -336,6 +295,7 @@ if (!hasSingleInstanceLock) {
   });
   void desktopStartup.run(async () => {
     await app.whenReady();
+    await session.defaultSession.setProxy({ mode: "system" });
     Menu.setApplicationMenu(null);
     const userDataPath = configureBootstrapEnvironment(
       app,
@@ -385,7 +345,6 @@ if (!hasSingleInstanceLock) {
     await desktopStartup.step("utilities", () => {
       registerIpc();
       supervisor.startAll();
-      utilitiesStarted = true;
     });
     await desktopStartup.step("window", () => {
       mainWindow = createMainWindow();

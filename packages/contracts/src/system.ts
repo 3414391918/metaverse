@@ -4,11 +4,9 @@ import {
   FishAudioProgressEventEnvelopeSchema
 } from "./fish-audio";
 import { ConversationExportCommandEnvelopeSchemas } from "./conversation-export";
-import { SiteOfficialModelCommandSchemas } from "./site-official-models";
 import { AgentTeamsSaveBuiltinsCommandEnvelopeSchema } from "./builtin-subagents";
 import { CatalogQueryLibraryManagementCommandEnvelopeSchema } from "./library-management";
 import { z } from "zod";
-import { RevisionAnalysisCommandSchemas } from "./revision-analysis-commands";
 import {
   RevisionAnalysisResultEventSchema,
   type RevisionAnalysisResultEvent
@@ -22,8 +20,6 @@ import {
 } from "./chat-assistant";
 import { EnvelopeBaseSchema, type Envelope } from "./envelope";
 import {
-  AgentAbortCommandEnvelopeSchema,
-  AgentUserInputResponseCommandEnvelopeSchema,
   AgentErrorEventEnvelopeSchema,
   AgentEvaluationSnapshotEventEnvelopeSchema,
   AgentMessageCompletedEventEnvelopeSchema,
@@ -32,7 +28,6 @@ import {
   AgentRetryScheduledEventEnvelopeSchema,
   AgentThinkingDeltaEventEnvelopeSchema,
   AgentTurnStartedEventEnvelopeSchema,
-  AgentPromptCommandEnvelopeSchema,
   SubagentActivityEventEnvelopeSchema,
   SubagentCompletedEventEnvelopeSchema,
   SubagentStartedEventEnvelopeSchema,
@@ -49,35 +44,34 @@ import {
   SubagentAuthoringDraftUpdatedEventEnvelopeSchema,
   LibraryEditorMutationEventEnvelopeSchema,
   WorkspaceEditorMutationEventEnvelopeSchema,
-  WorkspaceStageSelectionEventEnvelopeSchema,
-  SessionAbortCommandEnvelopeSchema,
-  SessionUserInputResponseCommandEnvelopeSchema,
-  SessionPromptCommandEnvelopeSchema,
-  type AgentErrorEventEnvelope,
-  type AgentEvaluationSnapshotEventEnvelope,
-  type AgentMessageCompletedEventEnvelope,
-  type AgentMessageDeltaEventEnvelope,
-  type AgentUsageObservedEventEnvelope,
-  type AgentRetryScheduledEventEnvelope,
-  type AgentThinkingDeltaEventEnvelope,
-  type AgentTurnStartedEventEnvelope,
-  type AgentToolCompletedEventEnvelope,
-  type AgentUserInputRequestedEventEnvelope,
-  type AgentToolCallStreamEventEnvelope,
-  type AgentToolRequestedEventEnvelope,
-  type SubagentActivityEventEnvelope,
-  type SubagentCompletedEventEnvelope,
-  type SubagentStartedEventEnvelope,
-  type LongChapterWriteProposalEventEnvelope,
-  type LongCharacterFileProposalEventEnvelope,
-  type LongContinuityFileProposalEventEnvelope,
-  type LongLedgerCommitProposalEventEnvelope,
-  type LongMutationProposalEventEnvelope,
-  type LongWorldbuildingFileProposalEventEnvelope,
-  type SubagentAuthoringDraftUpdatedEventEnvelope,
-  type LibraryEditorMutationEventEnvelope,
-  type WorkspaceEditorMutationEventEnvelope,
-  type WorkspaceStageSelectionEventEnvelope
+  WorkspaceStageSelectionEventEnvelopeSchema
+} from "./session";
+import type {
+  AgentErrorEventEnvelope,
+  AgentEvaluationSnapshotEventEnvelope,
+  AgentMessageCompletedEventEnvelope,
+  AgentMessageDeltaEventEnvelope,
+  AgentUsageObservedEventEnvelope,
+  AgentRetryScheduledEventEnvelope,
+  AgentThinkingDeltaEventEnvelope,
+  AgentTurnStartedEventEnvelope,
+  AgentToolCompletedEventEnvelope,
+  AgentUserInputRequestedEventEnvelope,
+  AgentToolCallStreamEventEnvelope,
+  AgentToolRequestedEventEnvelope,
+  SubagentActivityEventEnvelope,
+  SubagentCompletedEventEnvelope,
+  SubagentStartedEventEnvelope,
+  LongChapterWriteProposalEventEnvelope,
+  LongCharacterFileProposalEventEnvelope,
+  LongContinuityFileProposalEventEnvelope,
+  LongLedgerCommitProposalEventEnvelope,
+  LongMutationProposalEventEnvelope,
+  LongWorldbuildingFileProposalEventEnvelope,
+  SubagentAuthoringDraftUpdatedEventEnvelope,
+  LibraryEditorMutationEventEnvelope,
+  WorkspaceEditorMutationEventEnvelope,
+  WorkspaceStageSelectionEventEnvelope
 } from "./session";
 import {
   AgentTeamsCreateCommandEnvelopeSchema,
@@ -89,23 +83,6 @@ import {
   AgentTeamsSetEnabledCommandEnvelopeSchema,
   AgentTeamsSaveCommandEnvelopeSchema
 } from "./agent-team-catalog";
-import {
-  AgentModelCapacityCommandEnvelopeSchema,
-  AgentModelTestCommandEnvelopeSchema,
-  ModelsClearOfficialTokenCommandEnvelopeSchema,
-  ModelsSetOfficialModelEnabledCommandEnvelopeSchema,
-  ModelsListCommandEnvelopeSchema,
-  ModelsQueryOfficialBalanceCommandEnvelopeSchema,
-  ModelsRefreshFreeCommandEnvelopeSchema,
-  ModelsSetFreeModelEnabledCommandEnvelopeSchema,
-  ModelsRefreshOfficialCommandEnvelopeSchema,
-  ModelsSaveOfficialTokenCommandEnvelopeSchema,
-  ModelsSaveCommandEnvelopeSchema,
-  ModelsTestCommandEnvelopeSchema,
-  ModelsResolveCapacityCommandEnvelopeSchema,
-  ModelsListRemoteCommandEnvelopeSchema
-} from "./models";
-import { ModelUsageQueryCommandEnvelopeSchema } from "./model-usage";
 import {} from "./workspace";
 import { SettingsCommandEnvelopeSchemas } from "./settings-command-schemas";
 import {
@@ -149,7 +126,7 @@ import {
 import { LongWorkspaceCommandSchemas } from "./long-workspace-commands";
 export const IPC_COMMAND_CHANNEL = "deepwrite:command";
 export const IPC_EVENT_CHANNEL = "deepwrite:event";
-export const UtilityWorkerNameSchema = z.enum(["core", "agent", "tool"]);
+export const UtilityWorkerNameSchema = z.enum(["core"]);
 export type UtilityWorkerName = z.infer<typeof UtilityWorkerNameSchema>;
 export const UtilityHealthPayloadSchema = z.object({
   name: UtilityWorkerNameSchema,
@@ -206,25 +183,7 @@ export const CommandEnvelopeSchema = z.discriminatedUnion("type", [
   CatalogDuplicateProjectCommandEnvelopeSchema,
   CatalogWriteWritingContextCommandEnvelopeSchema,
   ...LongWorkspaceCommandSchemas,
-  SessionPromptCommandEnvelopeSchema,
-  SessionAbortCommandEnvelopeSchema,
-  SessionUserInputResponseCommandEnvelopeSchema,
-  ModelsListCommandEnvelopeSchema,
-  ModelsQueryOfficialBalanceCommandEnvelopeSchema,
-  ModelsRefreshFreeCommandEnvelopeSchema,
-  ModelsSetFreeModelEnabledCommandEnvelopeSchema,
-  ModelsRefreshOfficialCommandEnvelopeSchema,
-  ModelsSaveOfficialTokenCommandEnvelopeSchema,
-  ModelsClearOfficialTokenCommandEnvelopeSchema,
-  ...SiteOfficialModelCommandSchemas,
-  ModelsSetOfficialModelEnabledCommandEnvelopeSchema,
-  ModelsSaveCommandEnvelopeSchema,
-  ModelsTestCommandEnvelopeSchema,
-  ModelsResolveCapacityCommandEnvelopeSchema,
-  ModelsListRemoteCommandEnvelopeSchema,
-  ModelUsageQueryCommandEnvelopeSchema,
   ...SettingsCommandEnvelopeSchemas,
-  ...RevisionAnalysisCommandSchemas,
   AgentTeamsSaveBuiltinsCommandEnvelopeSchema,
   CatalogQueryLibraryManagementCommandEnvelopeSchema,
   AgentTeamsListCommandEnvelopeSchema,
@@ -240,12 +199,7 @@ export const CommandEnvelopeSchema = z.discriminatedUnion("type", [
   ChatAssistantProjectConfigGetCommandEnvelopeSchema,
   ChatAssistantProjectConfigSaveCommandEnvelopeSchema,
   ChatAssistantProjectConfigResetCommandEnvelopeSchema,
-  ExportLongManuscriptCommandEnvelopeSchema,
-  AgentPromptCommandEnvelopeSchema,
-  AgentAbortCommandEnvelopeSchema,
-  AgentUserInputResponseCommandEnvelopeSchema,
-  AgentModelTestCommandEnvelopeSchema,
-  AgentModelCapacityCommandEnvelopeSchema
+  ExportLongManuscriptCommandEnvelopeSchema
 ]);
 export type CommandEnvelope = z.infer<typeof CommandEnvelopeSchema>;
 export type CommandType = CommandEnvelope["type"];

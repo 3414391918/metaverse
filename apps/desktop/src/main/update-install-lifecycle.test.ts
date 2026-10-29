@@ -23,7 +23,8 @@ describe("update install lifecycle", () => {
     expect(helper.indexOf("await stopAssistant()")).toBeLessThan(
       helper.indexOf("await supervisor.shutdownAll()")
     );
-    expect(helper).toContain("flushUsage: () => undefined");
+    expect(helper).not.toContain("flushUsage");
+    expect(helper).not.toContain("reportUsage");
     const shutdownCompleteIndex = helper.indexOf("shutdownComplete = true");
     expect(shutdownCompleteIndex).toBeLessThan(
       helper.indexOf("updateService.quitAndInstall()", shutdownCompleteIndex)

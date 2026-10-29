@@ -7,12 +7,7 @@ import eventRoutesSource from "./events/registerWorkspaceSystemEventRoutes.ts?ra
 import settingsCoordinatorSource from "./composables/useSettingsFeatureCoordinator.ts?raw";
 import conversationSource from "./composables/useLibraryConversationCoordinator.ts?raw";
 import contextSource from "./composables/libraryConversationContext.ts?raw";
-import sendSource from "./composables/useLibraryConversationSend.ts?raw";
-const shortConversationSource = [
-  conversationSource,
-  contextSource,
-  sendSource
-].join("\n");
+const shortConversationSource = [conversationSource, contextSource].join("\n");
 
 describe("library management agent wiring", () => {
   it("routes selected libraries into a bounded management context", () => {
@@ -21,15 +16,10 @@ describe("library management agent wiring", () => {
       "function libraryEntryReferences("
     );
     expect(shortConversationSource).toContain("按需加载的方法");
-    expect(shortConversationSource).toContain(
-      "await options.resource.ensureDocumentsLoaded("
-    );
-    expect(shortConversationSource).toContain(
-      "libraryWorkspace: libraryAgentContext"
-    );
-    expect(shortConversationSource).toContain(
-      "const agentDocument = options.resource.activeAgentDocument.value"
-    );
+    expect(shortConversationSource).toContain("activeAgentDocument");
+    expect(conversationSource).not.toContain("sendMessage");
+    expect(conversationSource).not.toContain("resendMessage");
+    expect(conversationSource).not.toContain("stopGeneration");
   });
 
   it("stages library tool mutations and persists accepted entry or overview changes", () => {

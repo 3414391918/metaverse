@@ -1,4 +1,10 @@
 import { createPluginPage } from "./plugin-page.js";
+import {
+  beginToolCommand,
+  createToolClaim,
+  createToolRestoreSource,
+  parseToolRequest
+} from "./tool-command.js";
 /* Fixed to Harness 0.2.1-rc.2. Render through its public slots and services. */
 window.__ModuleLoader__.load({
   id: "@metaverse/harness-integration",
@@ -608,6 +614,33 @@ window.__ModuleLoader__.load({
             () => null
           )
         );
+        // Keep the model-facing tool instructions, but render the sent user
+        // message with the same compact label used in the composer.
+        ctx.inject(["uiConversation"], (child) => {
+          child.uiConversation.userText.register({
+            id: "metaverse-tool",
+            order: -100,
+            match(text, from) {
+              if (from !== 0) return undefined;
+              const request = parseToolRequest(text);
+              return request
+                ? { id: "metaverse-tool", start: 0, end: text.length, data: request }
+                : undefined;
+            }
+          });
+        });
+        ctx.slots.inject("conversation.user.text.node", () =>
+          ctx.slots.register(
+            { name: "conversation.user.text.node", key: "metaverse-tool", priority: 100 },
+            ({ node }) =>
+              h(
+                React.Fragment,
+                null,
+                h("span", { style: { color: "#6fa8ff" } }, `/${node.data.name}`),
+                node.data.task ? ` ${node.data.task}` : ""
+              )
+          )
+        );
         ctx.slots.inject("sidebar.workspaces.session.menu.item", () =>
           ctx.slots.register(
             {
@@ -641,7 +674,7 @@ window.__ModuleLoader__.load({
             }
           )
         );
-        ctx.inject(["commandUi", "sessions", "conversation"], (child) =>
+        ctx.inject(["commandUi", "sessions", "conversation", "remote.session"], (child) =>
           child.commandUi.register({
             name: "tool",
             label: () => t("工具"),
@@ -695,33 +728,28 @@ window.__ModuleLoader__.load({
                 const binding = child.sessions.binding(session.sessionId);
                 if (!binding) throw new Error("当前会话已关闭。");
                 const input = child.conversation.input.for(binding.ctx);
-                const snapshot = input.state.getSnapshot();
-                const leading =
-                  snapshot.claim?.token ?? snapshot.draft.match(/^\/[^\s]*\s*/u)?.[0] ?? "";
-                const entry = `${tool.directory}/${tool.entryFile}`;
-                const claim = {
-                  name: "tool",
-                  token: `/${tool.name} `,
-                  hint: "输入任务",
-                  submit: (args) =>
-                    child.conversation.sendSession(
-                      session,
-                      `请使用元宇宙工具「${tool.name}」完成下面的任务。先读取工具入口 ${JSON.stringify(entry)}，再按工具说明执行。\n\n${args}`,
-                      [],
-                      "queue"
-                    )
-                };
-                if (
-                  !input.beginCommand(claim, {
-                    start: 0,
-                    end: leading.length,
-                    draftRev: snapshot.draftRev
-                  })
-                )
+                const claim = createToolClaim(
+                  tool,
+                  session.sessionId,
+                  child.sessions,
+                  child.conversation,
+                  child.remote.session
+                );
+                if (!beginToolCommand(input, claim))
                   throw new Error("无法在当前输入框中选择工具，请重试。");
               }
             }
           })
+        );
+        ctx.inject(["inputTriggers", "sessions", "conversation", "remote.session"], (child) =>
+          child.inputTriggers.registerSource(
+            createToolRestoreSource(
+              listTools,
+              child.sessions,
+              child.conversation,
+              child.remote.session
+            )
+          )
         );
         ctx.inject(
           ["uiWorkspace", "workspaces", "sessions", "remote.workspace"],

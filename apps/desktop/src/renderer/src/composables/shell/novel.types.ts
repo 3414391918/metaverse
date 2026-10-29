@@ -66,9 +66,6 @@ export interface NovelRuntime {
   disposeLongBookConversations: ReturnType<
     typeof useLongProposalRuntimeCoordinator
   >["disposeBookConversations"];
-  stopLongGenerationCommand: ReturnType<
-    typeof useLongProposalRuntimeCoordinator
-  >["stopActiveGeneration"];
   approveLongProposal: ReturnType<
     typeof useLongProposalRuntimeCoordinator
   >["approveProposal"];

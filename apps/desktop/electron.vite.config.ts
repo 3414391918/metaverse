@@ -12,10 +12,6 @@ const aliases = {
     workspaceRoot,
     "packages/contracts/src/index.ts"
   ),
-  "@deepwrite/pi-runtime-adapter": resolve(
-    workspaceRoot,
-    "packages/pi-runtime-adapter/src/index.ts"
-  ),
   "@deepwrite/shared": resolve(workspaceRoot, "packages/shared/src/index.ts")
 };
 
@@ -27,13 +23,6 @@ const rendererAliases = [
   {
     find: /^@deepwrite\/contracts\/system$/,
     replacement: resolve(workspaceRoot, "packages/contracts/src/system.ts")
-  },
-  {
-    find: "@deepwrite/pi-runtime-adapter",
-    replacement: resolve(
-      workspaceRoot,
-      "packages/pi-runtime-adapter/src/index.ts"
-    )
   },
   {
     find: "@deepwrite/shared",
@@ -57,14 +46,6 @@ export default defineConfig({
           "utilities/core-entry": resolve(
             appRoot,
             "src/utilities/core-entry.ts"
-          ),
-          "utilities/agent-entry": resolve(
-            appRoot,
-            "src/utilities/agent-entry.ts"
-          ),
-          "utilities/tool-entry": resolve(
-            appRoot,
-            "src/utilities/tool-entry.ts"
           )
         }
       }

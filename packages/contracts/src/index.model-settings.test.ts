@@ -114,26 +114,14 @@ describe("desktop contracts: model settings", () => {
     );
   });
 
-  it("validates free-model enablement commands", () => {
+  it("rejects the removed free-model enablement command", () => {
     const command = createEnvelope(
       "models.setFreeModelEnabled",
       { modelId: " deepwrite-free-writer ", enabled: true },
       { id: "cmd_enable_free_model" }
     );
 
-    expect(CommandEnvelopeSchema.parse(command)).toMatchObject({
-      type: "models.setFreeModelEnabled",
-      payload: {
-        modelId: "deepwrite-free-writer",
-        enabled: true
-      }
-    });
-    expect(() =>
-      CommandEnvelopeSchema.parse({
-        ...command,
-        payload: { modelId: " ", enabled: true }
-      })
-    ).toThrow();
+    expect(CommandEnvelopeSchema.safeParse(command).success).toBe(false);
   });
 
   it("accepts max and one custom provider thinking level", () => {
@@ -304,7 +292,7 @@ describe("desktop contracts: model settings", () => {
     ).toThrow();
   });
 
-  it("accepts an unsaved model draft for a connection test", () => {
+  it("rejects the removed connection-test command for unsaved drafts", () => {
     const envelope = createEnvelope(
       "models.test",
       {
@@ -323,10 +311,10 @@ describe("desktop contracts: model settings", () => {
       { id: "cmd_test_draft" }
     );
 
-    expect(CommandEnvelopeSchema.parse(envelope).type).toBe("models.test");
+    expect(CommandEnvelopeSchema.safeParse(envelope).success).toBe(false);
   });
 
-  it("accepts a model capacity lookup for an unsaved draft", () => {
+  it("rejects the removed model capacity command for unsaved drafts", () => {
     const envelope = createEnvelope(
       "models.resolveCapacity",
       {
@@ -345,12 +333,10 @@ describe("desktop contracts: model settings", () => {
       { id: "cmd_resolve_capacity" }
     );
 
-    expect(CommandEnvelopeSchema.parse(envelope).type).toBe(
-      "models.resolveCapacity"
-    );
+    expect(CommandEnvelopeSchema.safeParse(envelope).success).toBe(false);
   });
 
-  it("accepts a remote model list request from an unsaved draft", () => {
+  it("rejects the removed remote model list command for unsaved drafts", () => {
     const envelope = createEnvelope(
       "models.listRemote",
       {
@@ -363,8 +349,6 @@ describe("desktop contracts: model settings", () => {
       { id: "cmd_list_remote" }
     );
 
-    expect(CommandEnvelopeSchema.parse(envelope).type).toBe(
-      "models.listRemote"
-    );
+    expect(CommandEnvelopeSchema.safeParse(envelope).success).toBe(false);
   });
 });

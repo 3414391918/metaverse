@@ -1,6 +1,7 @@
 import type { AgentConversationContext } from "./context";
 import { cloneMessage } from "./clone";
 import { finalizeUnfinishedMessageTools } from "./attempt-state";
+import { finalizeRunningSubagents } from "./run-lifecycle";
 import { id } from "./shared";
 
 type SessionLifecycleContext = Pick<
@@ -9,27 +10,18 @@ type SessionLifecycleContext = Pick<
   | "activeRunId"
   | "newConversation"
   | "epoch"
-  | "unconfirmedUserMessageId"
-  | "clearIdleTimer"
   | "submitting"
-  | "stopping"
   | "runtime"
   | "conversationError"
-  | "handledEventIds"
   | "finishedRunIds"
   | "runMessageIds"
-  | "turnCheckpointByRun"
-  | "subagentTurnCheckpointByRun"
   | "seenTurnIds"
   | "seenSubagentTurnIds"
   | "observedRunByAttempt"
   | "approvalModeByAttempt"
   | "approvalModeByRun"
-  | "userInput"
-  | "flushPendingAgentTextDelta"
   | "messages"
   | "messageMutations"
-  | "finalizeRunningSubagents"
   | "runPersistenceBatch"
   | "stopStreamingMessages"
   | "storeCurrentConversation"
@@ -43,45 +35,30 @@ type SessionLifecycleContext = Pick<
   | "storedConversations"
   | "historyOperationPending"
 >;
-export function cancelPendingGeneration(ctx: SessionLifecycleContext): boolean {
-  if (ctx.pendingAttemptId.value === null || ctx.activeRunId.value !== null) {
-    return false;
-  }
-  ctx.newConversation();
-  return true;
-}
 export function resetTransientConversationState(
   ctx: SessionLifecycleContext
 ): void {
   ctx.epoch += 1;
-  ctx.unconfirmedUserMessageId = undefined;
-  ctx.clearIdleTimer();
   ctx.submitting.value = false;
-  ctx.stopping.value = false;
   ctx.pendingAttemptId.value = null;
   ctx.activeRunId.value = null;
   ctx.runtime.value = null;
   ctx.conversationError.value = null;
-  ctx.handledEventIds.clear();
   ctx.finishedRunIds.clear();
   ctx.runMessageIds.clear();
-  ctx.turnCheckpointByRun.clear();
-  ctx.subagentTurnCheckpointByRun.clear();
   ctx.seenTurnIds.clear();
   ctx.seenSubagentTurnIds.clear();
   ctx.observedRunByAttempt.clear();
   ctx.approvalModeByAttempt.clear();
   ctx.approvalModeByRun.clear();
-  ctx.userInput.clear();
 }
 export function stopStreamingMessages(ctx: SessionLifecycleContext): void {
-  ctx.flushPendingAgentTextDelta();
   const completedAt = new Date().toISOString();
   for (const message of ctx.messages.value) {
     if (message.status !== "streaming") continue;
     message.status = "stopped";
     if (message.retry) delete message.retry;
-    ctx.finalizeRunningSubagents(
+    finalizeRunningSubagents(
       message,
       "stopped",
       completedAt,

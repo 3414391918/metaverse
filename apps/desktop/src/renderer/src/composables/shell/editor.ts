@@ -128,7 +128,6 @@ export function useShellEditor(ports: ShellRuntimePorts): EditorRuntime {
     updatePermissionMode,
     updateShowContextUsage,
     updateShowInMenuBar,
-    updateUseNetworkProxy,
     updateWorkspacePaneLayout
   } = useGeneralSettingsCoordinator({
     settings: ports.state.generalSettings,
@@ -237,7 +236,6 @@ export function useShellEditor(ports: ShellRuntimePorts): EditorRuntime {
     updatePermissionMode,
     updateShowContextUsage,
     updateShowInMenuBar,
-    updateUseNetworkProxy,
     updateWorkspacePaneLayout,
     revealTextPane,
     handleLiveDocumentChange

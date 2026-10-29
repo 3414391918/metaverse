@@ -18,25 +18,56 @@ async function available(path: string): Promise<boolean> {
 export async function listChapterIllustrations(
   bookDirectory: string,
   bodyPath: string,
-  content: string
+  content: string,
+  options: {
+    query: string | undefined;
+    order: "asc" | "desc";
+    offset: number;
+    limit: number;
+  }
 ) {
-  return Promise.all(
-    [...content.matchAll(IMAGE_REFERENCE)].map(async (match) => {
+  const candidates = [...content.matchAll(IMAGE_REFERENCE)]
+    .map((match) => {
       const offset = match.index;
       const filename = match[1]!;
-      const path = join(bookDirectory, dirname(bodyPath), "images", filename);
       return {
         filename,
-        path,
         offset,
         nearbyText: content.slice(
           Math.max(0, offset - 240),
           Math.min(content.length, offset + match[0].length + 240)
-        ),
-        available: await available(path)
+        )
       };
     })
+    .filter(
+      ({ filename, nearbyText }) =>
+        !options.query ||
+        `${filename}\n${nearbyText.replace(IMAGE_REFERENCE, "")}`
+          .toLocaleLowerCase()
+          .includes(options.query.toLocaleLowerCase())
+    );
+  if (options.order === "desc") candidates.reverse();
+  const selected = candidates.slice(
+    options.offset,
+    options.offset + options.limit
   );
+  return {
+    total: candidates.length,
+    offset: options.offset,
+    hasMore: options.offset + selected.length < candidates.length,
+    references: await Promise.all(
+      selected.map(async ({ filename, offset, nearbyText }) => {
+        const path = join(bookDirectory, dirname(bodyPath), "images", filename);
+        return {
+          filename,
+          path,
+          offset,
+          nearbyText,
+          available: await available(path)
+        };
+      })
+    )
+  };
 }
 
 export async function listCharacterAssets(

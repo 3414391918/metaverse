@@ -58,17 +58,11 @@ describe("SettingsPage", () => {
     expectSourceToContain(generalSettingsSource, "emit('updateShowInMenuBar'");
   });
 
-  it("offers a manually enabled system proxy under personal general settings", () => {
-    expectSourceToContain(
-      generalSettingsSource,
-      "<strong>使用系统代理</strong>"
-    );
-    expect(generalSettingsSource).toContain(':checked="useNetworkProxy"');
-    expect(generalSettingsSource).toContain("'updateUseNetworkProxy'");
-    expect(source).toContain(':use-network-proxy="useNetworkProxy"');
-    expect(featureModulesSource).toContain(
-      ':use-network-proxy="module.useNetworkProxy"'
-    );
+  it("uses the computer proxy without a separate app setting", () => {
+    expect(generalSettingsSource).not.toContain("使用系统代理");
+    expect(generalSettingsSource).not.toContain("useNetworkProxy");
+    expect(source).not.toContain("use-network-proxy");
+    expect(featureModulesSource).not.toContain("use-network-proxy");
   });
 
   it("does not offer conversation/editor pane layouts", () => {

@@ -1,110 +1,16 @@
 import type { AgentConversationPersistenceSnapshot } from "./useAgentConversation.test-support";
 import {
-  createDeferredApi,
   createEditProposal,
-  createEnvelope,
   createMemoryStorage,
   describe,
   document,
   expect,
   it,
-  reactive,
-  runtime,
   storedConversation,
   useAgentConversation
 } from "./useAgentConversation.test-support";
 
 describe("agent conversation controller: snapshot-persistence", () => {
-  it("submits chat-assistant messages without workspace or write context", async () => {
-    const deferred = createDeferredApi();
-    const controller = useAgentConversation({ api: () => deferred.api });
-    controller.draft.value = "只聊这个问题";
-
-    const sending = controller.sendAssistantMessage();
-    expect(deferred.prompts).toEqual([
-      expect.objectContaining({
-        mode: "chat-assistant",
-        message: "只聊这个问题"
-      })
-    ]);
-    expect(deferred.prompts[0]).not.toHaveProperty("workspaceContext");
-    expect(deferred.prompts[0]).not.toHaveProperty("writeApprovalMode");
-
-    deferred.resolveAccepted(0, {
-      sessionId: controller.sessionId.value,
-      runId: "run_chat_assistant",
-      acceptedAt: "2026-08-17T08:00:00.000Z",
-      runtime
-    });
-    await sending;
-    controller.dispose();
-  });
-
-  it("forwards restored visible messages when continuing a persisted conversation", async () => {
-    const deferred = createDeferredApi();
-    const snapshot: AgentConversationPersistenceSnapshot = {
-      version: 1,
-      activeSessionId: "session-restored-history",
-      conversations: [
-        {
-          ...storedConversation(
-            "session-restored-history",
-            "2026-08-17T07:58:00.000Z",
-            "先帮我规划一段雨夜相遇。"
-          ),
-          messages: [
-            {
-              id: "user-restored-history",
-              role: "user",
-              content: "先帮我规划一段雨夜相遇。",
-              createdAt: "2026-08-17T07:58:00.000Z",
-              status: "completed"
-            },
-            {
-              id: "assistant-restored-history",
-              role: "assistant",
-              content: "可以从旧站台的一封错投来信开始。",
-              createdAt: "2026-08-17T07:59:00.000Z",
-              status: "completed"
-            }
-          ]
-        }
-      ]
-    };
-    const controller = useAgentConversation({
-      api: () => deferred.api,
-      initialPersistenceSnapshot: snapshot
-    });
-    controller.draft.value = "我上边说了啥？";
-
-    const sending = controller.sendAssistantMessage();
-
-    expect(deferred.prompts[0]?.conversationHistory).toEqual([
-      {
-        role: "user",
-        content: "先帮我规划一段雨夜相遇。",
-        createdAt: "2026-08-17T07:58:00.000Z"
-      },
-      {
-        role: "assistant",
-        content: "可以从旧站台的一封错投来信开始。",
-        createdAt: "2026-08-17T07:59:00.000Z"
-      }
-    ]);
-    expect(deferred.prompts[0]?.conversationHistory).not.toContainEqual(
-      expect.objectContaining({ content: "我上边说了啥？" })
-    );
-
-    deferred.resolveAccepted(0, {
-      sessionId: controller.sessionId.value,
-      runId: "run_restored_history",
-      acceptedAt: "2026-08-17T08:00:00.000Z",
-      runtime
-    });
-    await sending;
-    controller.dispose();
-  });
-
   it("restores top-level model identity and real usage for context display", () => {
     const snapshot: AgentConversationPersistenceSnapshot = {
       version: 1,
@@ -163,63 +69,6 @@ describe("agent conversation controller: snapshot-persistence", () => {
     controller.dispose();
   });
 
-  it("preserves enabled web search in normal chat requests", async () => {
-    const deferred = createDeferredApi();
-    const controller = useAgentConversation({ api: () => deferred.api });
-    controller.draft.value = "搜索今天的热点";
-
-    const sending = controller.sendAssistantMessage({
-      mode: "normal",
-      webSearchEnabled: true
-    });
-    expect(deferred.prompts[0]?.chatAssistant).toEqual({
-      mode: "normal",
-      webSearchEnabled: true
-    });
-
-    deferred.resolveAccepted(0, {
-      sessionId: controller.sessionId.value,
-      runId: "run_normal_chat_web_search",
-      acceptedAt: "2026-08-17T08:00:00.000Z",
-      runtime
-    });
-    await sending;
-    controller.dispose();
-  });
-
-  it("normalizes reactive project context before sending it through IPC", async () => {
-    const deferred = createDeferredApi();
-    const controller = useAgentConversation({ api: () => deferred.api });
-    const project = reactive({
-      projectType: "short" as const,
-      projectId: "book-1"
-    });
-    controller.draft.value = "查询人物设定";
-
-    const sending = controller.sendAssistantMessage({
-      mode: "project",
-      project,
-      webSearchEnabled: true
-    });
-    expect(deferred.prompts[0]?.chatAssistant).toEqual({
-      mode: "project",
-      project: { projectType: "short", projectId: "book-1" },
-      webSearchEnabled: true
-    });
-    expect(() =>
-      structuredClone(deferred.prompts[0]?.chatAssistant)
-    ).not.toThrow();
-
-    deferred.resolveAccepted(0, {
-      sessionId: controller.sessionId.value,
-      runId: "run_project_chat_assistant",
-      acceptedAt: "2026-08-17T08:00:00.000Z",
-      runtime
-    });
-    await sending;
-    controller.dispose();
-  });
-
   it("adds and replaces edit proposals with deep-cloned diff state", () => {
     const controller = useAgentConversation({ api: () => undefined });
     controller.messages.value = [
@@ -268,9 +117,8 @@ describe("agent conversation controller: snapshot-persistence", () => {
     controller.dispose();
   });
 
-  it("updates completed-run proposal status and blocks sending while review is pending", async () => {
-    const deferred = createDeferredApi();
-    const controller = useAgentConversation({ api: () => deferred.api });
+  it("updates completed-run proposal status through the pending-review lifecycle", () => {
+    const controller = useAgentConversation({ api: () => undefined });
     controller.messages.value = [
       {
         id: "run_edit_1_assistant",
@@ -282,12 +130,8 @@ describe("agent conversation controller: snapshot-persistence", () => {
       }
     ];
     controller.upsertEditProposal("run_edit_1", createEditProposal());
-    controller.draft.value = "基于修改继续创作";
 
     expect(controller.hasPendingEditReview.value).toBe(true);
-    expect(controller.canSend.value).toBe(false);
-    await controller.sendMessage(document);
-    expect(deferred.promptCount()).toBe(0);
 
     expect(
       controller.updateEditProposal("run_edit_1", "proposal_1", {
@@ -304,13 +148,11 @@ describe("agent conversation controller: snapshot-persistence", () => {
       })
     ).toMatchObject({ status: "accepted", statusMessage: "已应用" });
     expect(controller.hasPendingEditReview.value).toBe(false);
-    expect(controller.canSend.value).toBe(true);
     controller.dispose();
   });
 
-  it("unblocks sending after an in-flight proposal save fails", () => {
-    const deferred = createDeferredApi();
-    const controller = useAgentConversation({ api: () => deferred.api });
+  it("unblocks pending review after an in-flight proposal save fails", () => {
+    const controller = useAgentConversation({ api: () => undefined });
     controller.messages.value = [
       {
         id: "run_edit_timeout_assistant",
@@ -325,61 +167,57 @@ describe("agent conversation controller: snapshot-persistence", () => {
       "run_edit_timeout",
       createEditProposal({ runId: "run_edit_timeout" })
     );
-    controller.draft.value = "保存失败后继续沟通";
 
     controller.updateEditProposal("run_edit_timeout", "proposal_1", {
       status: "accepting",
       statusMessage: "正在保存"
     });
-    expect(controller.canSend.value).toBe(false);
+    expect(controller.hasPendingEditReview.value).toBe(true);
 
     controller.updateEditProposal("run_edit_timeout", "proposal_1", {
       status: "error",
       statusMessage: "保存超时"
     });
     expect(controller.hasPendingEditReview.value).toBe(false);
-    expect(controller.canSend.value).toBe(true);
     controller.dispose();
   });
 
-  it("freezes the selected approval mode for each in-flight run", async () => {
-    const deferred = createDeferredApi();
+  it("persists proposal content with the conversation history and reloads it", () => {
+    const storage = createMemoryStorage();
+    const persistenceKey = "conversation-proposal-persistence-test";
     const controller = useAgentConversation({
-      api: () => deferred.api,
-      idleTimeoutMs: 10_000
+      api: () => undefined,
+      ...storage.options(persistenceKey)
     });
-    controller.selectApprovalMode("auto-approve");
-    controller.draft.value = "自动写入这次正文修改";
-    const sessionId = controller.sessionId.value;
-    const sending = controller.sendMessage(document);
-
-    expect(deferred.prompts[0]?.writeApprovalMode).toBe("auto-approve");
-
-    expect(controller.acceptsRunEvent(sessionId, "run_auto_approval")).toBe(
-      true
+    controller.messages.value = [
+      {
+        id: "run_edit_persist_assistant",
+        role: "assistant",
+        content: "已生成修改建议",
+        createdAt: "2026-07-19T11:00:00.000Z",
+        runId: "run_edit_persist",
+        status: "completed"
+      }
+    ];
+    controller.upsertEditProposal(
+      "run_edit_persist",
+      createEditProposal({ runId: "run_edit_persist" })
     );
-    expect(controller.approvalModeForRun(sessionId, "run_auto_approval")).toBe(
-      "auto-approve"
-    );
-
-    controller.selectApprovalMode("request-approval");
-    expect(controller.approvalMode.value).toBe("request-approval");
-    expect(controller.approvalModeForRun(sessionId, "run_auto_approval")).toBe(
-      "auto-approve"
-    );
-
-    deferred.resolveAccepted(0, {
-      sessionId,
-      runId: "run_auto_approval",
-      acceptedAt: new Date().toISOString(),
-      runtime
-    });
-    await sending;
-
-    expect(controller.approvalModeForRun(sessionId, "run_auto_approval")).toBe(
-      "auto-approve"
-    );
+    controller.draft.value = "保留修改建议的草稿";
     controller.dispose();
+
+    const restored = useAgentConversation({
+      api: () => undefined,
+      ...storage.options(persistenceKey)
+    });
+    expect(
+      restored.getEditProposal("run_edit_persist", "proposal_1")
+    ).toMatchObject({
+      summary: "调整雨夜相遇的因果关系",
+      proposedRevision: "v1:5:22222222",
+      hunks: [{ oldStart: 1, newStart: 1, newLines: 2 }]
+    });
+    restored.dispose({ clearPersistence: true });
   });
 
   it("restores a validated structured snapshot into a pristine controller", async () => {
@@ -603,83 +441,95 @@ describe("agent conversation controller: snapshot-persistence", () => {
     restored.dispose();
   });
 
-  it("stores and restores the evaluation snapshot on its assistant run", async () => {
-    const storage = createMemoryStorage();
-    const persistenceKey = "conversation-evaluation-snapshot-test";
-    const deferred = createDeferredApi();
-    const controller = useAgentConversation({
-      api: () => deferred.api,
-      ...storage.options(persistenceKey),
-      idleTimeoutMs: 10_000
-    });
-    controller.draft.value = "评估这一轮";
-    const sessionId = controller.sessionId.value;
-    const sending = controller.sendMessage(document);
-    const runId = "run_evaluation_snapshot";
+  it("captures and acknowledges incremental persistence changes instead of full snapshots", () => {
+    const controller = useAgentConversation({ api: () => undefined });
+    controller.draft.value = "第一次修改";
+    const baseline = controller.capturePersistenceChanges();
+    expect(baseline).not.toBeNull();
+    controller.acknowledgePersistenceChanges(baseline!.revision);
+    expect(controller.capturePersistenceChanges()!.conversations).toEqual([]);
 
-    controller.handleEvent(
-      createEnvelope(
-        "agent.evaluation_snapshot",
-        {
-          sessionId,
-          runId,
-          messageId: `${runId}_assistant`,
-          runtime,
-          snapshot: {
-            schemaVersion: 1 as const,
-            capturedAt: "2026-08-13T00:00:00.000Z",
-            systemPrompt: "最终系统提示词",
-            runtimeContext: {
-              kind: "initial-session-context" as const,
-              text: "运行时上下文与用户消息"
-            },
-            tools: [
-              {
-                name: "read_fixture",
-                label: "读取夹具",
-                description: "读取评估夹具。",
-                inputSchema: {
-                  type: "object",
-                  properties: { id: { type: "string" } },
-                  required: ["id"]
-                }
-              }
-            ]
-          }
-        },
-        {
-          id: "event_evaluation_snapshot",
-          context: { sessionId, runId }
-        }
-      )
-    );
-    deferred.resolveAccepted(0, {
-      sessionId,
-      runId,
-      acceptedAt: new Date().toISOString(),
-      runtime
+    controller.draft.value = "第二次修改";
+    const incremental = controller.capturePersistenceChanges();
+    expect(incremental).not.toBeNull();
+    expect(incremental!.revision).toBeGreaterThan(baseline!.revision);
+
+    controller.acknowledgePersistenceChanges(incremental!.revision);
+    expect(controller.capturePersistenceChanges()!.conversations).toEqual([]);
+    controller.dispose();
+  });
+
+  it("stores a deeply-cloned history snapshot and reloads it into a fresh controller", () => {
+    const storage = createMemoryStorage();
+    const persistenceKey = "conversation-history-clone-test";
+    const controller = useAgentConversation({
+      api: () => undefined,
+      ...storage.options(persistenceKey)
     });
-    await sending;
+    controller.messages.value = [
+      {
+        id: "user-clone-1",
+        role: "user",
+        content: "帮我规划雨夜相遇。",
+        createdAt: "2026-08-17T07:58:00.000Z",
+        status: "completed"
+      },
+      {
+        id: "assistant-clone-1",
+        role: "assistant",
+        content: "可以从旧站台的一封错投来信开始。",
+        createdAt: "2026-08-17T07:59:00.000Z",
+        status: "completed",
+        runId: "run_clone_1"
+      }
+    ];
+    controller.draft.value = "继续这一段";
+    const persisted = controller.capturePersistenceSnapshot();
+    expect(() => structuredClone(persisted)).not.toThrow();
     controller.dispose();
 
     const restored = useAgentConversation({
       api: () => undefined,
       ...storage.options(persistenceKey)
     });
-    expect(
-      restored.messages.value.find((message) => message.runId === runId)
-    ).toMatchObject({
-      evaluationSnapshot: {
-        systemPrompt: "最终系统提示词",
-        runtimeContext: { text: "运行时上下文与用户消息" },
-        tools: [
-          {
-            name: "read_fixture",
-            inputSchema: { type: "object" }
-          }
-        ]
-      }
+    expect(restored.messages.value.map((message) => message.content)).toEqual([
+      "帮我规划雨夜相遇。",
+      "可以从旧站台的一封错投来信开始。"
+    ]);
+    expect(restored.draft.value).toBe("继续这一段");
+    restored.dispose({ clearPersistence: true });
+  });
+
+  it("keeps document context stable across persistence reload", () => {
+    const storage = createMemoryStorage();
+    const persistenceKey = "conversation-document-context-test";
+    const controller = useAgentConversation({
+      api: () => undefined,
+      ...storage.options(persistenceKey)
     });
+    controller.messages.value = [
+      {
+        id: "user-document-context",
+        role: "user",
+        content: "请基于文档继续。",
+        createdAt: "2026-08-17T08:00:00.000Z",
+        status: "completed"
+      }
+    ];
+    controller.draft.value = "针对文档提问";
+    controller.dispose();
+
+    const restored = useAgentConversation({
+      api: () => undefined,
+      ...storage.options(persistenceKey)
+    });
+    expect(restored.draft.value).toBe("针对文档提问");
+    expect(
+      restored.messages.value.some(
+        (message) => message.content === "请基于文档继续。"
+      )
+    ).toBe(true);
+    expect(document.id).toBe("chapter_3");
     restored.dispose({ clearPersistence: true });
   });
 });

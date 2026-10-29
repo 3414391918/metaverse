@@ -16,7 +16,6 @@ defineProps<{
   language: AppLanguage;
   showContextUsage: boolean;
   showInMenuBar: boolean;
-  useNetworkProxy: boolean;
   workspacePaneLayout: WorkspacePaneLayout;
   bodyTextFormats: BodyTextFormats;
 }>();
@@ -28,7 +27,6 @@ const emit = defineEmits<{
   updateLanguage: [language: AppLanguage];
   updateShowContextUsage: [enabled: boolean];
   updateShowInMenuBar: [enabled: boolean];
-  updateUseNetworkProxy: [enabled: boolean];
   updateWorkspacePaneLayout: [layout: WorkspacePaneLayout];
   updateBodyTextFormat: [change: BodyTextFormatChange];
 }>();
@@ -120,26 +118,6 @@ const formatOptions: Array<{ value: BodyTextFormat; label: string }> = [
               )
             " /></span
       ></label>
-      <label class="settings-item">
-        <span class="settings-item-text"
-          ><strong>使用系统代理</strong
-          ><small
-            >开启后，Fish Audio 等网络请求使用电脑当前的系统代理设置</small
-          ></span
-        >
-        <span class="settings-toggle"
-          ><input
-            type="checkbox"
-            :checked="useNetworkProxy"
-            aria-label="使用系统代理"
-            @change="
-              emit(
-                'updateUseNetworkProxy',
-                ($event.target as HTMLInputElement).checked
-              )
-            "
-        /></span>
-      </label>
     </div>
   </section>
 </template>

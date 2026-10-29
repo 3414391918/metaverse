@@ -11,7 +11,6 @@ import type { AgentConversationPersistenceSnapshot } from "./types";
 type PersistenceControllerContext = Pick<
   AgentConversationContext,
   | "conversationClock"
-  | "flushPendingAgentTextDelta"
   | "persistenceErrorReported"
   | "options"
   | "reportPersistenceError"
@@ -55,7 +54,6 @@ export function storeCurrentConversation(
 export function capturePersistenceSnapshot(
   ctx: PersistenceControllerContext
 ): AgentConversationPersistenceSnapshot {
-  ctx.flushPendingAgentTextDelta();
   return captureConversationHistory(ctx);
 }
 export function reportPersistenceError(

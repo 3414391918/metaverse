@@ -11,9 +11,6 @@ import type { UtilitySupervisor } from "./supervisor";
 import { runApplicationSmoke } from "./smoke";
 export function createDesktopReadyAnnouncer(options: {
   supervisor: UtilitySupervisor;
-  setSmokeEventTap: (
-    tap: ((event: SystemEventEnvelope) => void) | undefined
-  ) => void;
   quit: () => void;
 }) {
   async function announceReady(window: BrowserWindow): Promise<void> {
@@ -28,12 +25,7 @@ export function createDesktopReadyAnnouncer(options: {
     }
     if (process.env.DEEPWRITE_SMOKE === "1") {
       try {
-        await runApplicationSmoke(
-          health,
-          options.supervisor,
-          window,
-          options.setSmokeEventTap
-        );
+        await runApplicationSmoke(health, options.supervisor, window);
       } catch (error: unknown) {
         console.error(
           `DEEPWRITE_SMOKE_FAIL ${error instanceof Error ? error.message : "unknown"}`

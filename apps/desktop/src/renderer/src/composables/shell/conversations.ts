@@ -70,8 +70,6 @@ export function useShellConversations(
     selectModel: selectLongModel,
     selectTemperature: selectLongTemperature,
     selectThinking: selectLongThinking,
-    sendLongMessage,
-    stopGeneration: stopLongGeneration,
     updateDraft: updateLongComposerDraft,
     useSuggestion: useLongSuggestion
   } = useLongConversationCoordinator({
@@ -134,11 +132,6 @@ export function useShellConversations(
         () => ports.editor.updatePermissionMode
       )
     },
-    commands: {
-      stopGeneration: deferShellAction(
-        () => ports.novel.stopLongGenerationCommand
-      )
-    },
     showConversation: ports.features.featureHost.showConversation,
     notifications: uiMessage
   });
@@ -154,8 +147,6 @@ export function useShellConversations(
     selectModel,
     selectTemperature,
     selectThinking,
-    sendMessage,
-    stopGeneration,
     updateDraft: updateComposerDraft,
     useSuggestion
   } = useLibraryConversationCoordinator({
@@ -314,8 +305,6 @@ export function useShellConversations(
     selectLongModel,
     selectLongTemperature,
     selectLongThinking,
-    sendLongMessage,
-    stopLongGeneration,
     updateLongComposerDraft,
     useLongSuggestion,
     activeConversation,
@@ -328,8 +317,6 @@ export function useShellConversations(
     selectModel,
     selectTemperature,
     selectThinking,
-    sendMessage,
-    stopGeneration,
     updateComposerDraft,
     useSuggestion,
     applyDefaultApprovalMode

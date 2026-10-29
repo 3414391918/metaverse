@@ -50,7 +50,6 @@ const props = defineProps<{
   language: AppLanguage;
   showContextUsage: boolean;
   showInMenuBar: boolean;
-  useNetworkProxy: boolean;
   workspacePaneLayout: WorkspacePaneLayout;
   bodyTextFormats: BodyTextFormats;
   longAgentSettings: LongAgentSettings | null;
@@ -75,7 +74,6 @@ const emit = defineEmits<{
   updateLanguage: [language: AppLanguage];
   updateShowContextUsage: [enabled: boolean];
   updateShowInMenuBar: [enabled: boolean];
-  updateUseNetworkProxy: [enabled: boolean];
   updateWorkspacePaneLayout: [layout: WorkspacePaneLayout];
   updateBodyTextFormat: [change: BodyTextFormatChange];
   retryLongAgents: [];
@@ -216,7 +214,6 @@ function selectCategory(id: string): void {
           :language="language"
           :show-context-usage="showContextUsage"
           :show-in-menu-bar="showInMenuBar"
-          :use-network-proxy="useNetworkProxy"
           :workspace-pane-layout="workspacePaneLayout"
           :body-text-formats="bodyTextFormats"
           @update-permission-mode="emit('updatePermissionMode', $event)"
@@ -227,7 +224,6 @@ function selectCategory(id: string): void {
           @update-language="emit('updateLanguage', $event)"
           @update-show-context-usage="emit('updateShowContextUsage', $event)"
           @update-show-in-menu-bar="emit('updateShowInMenuBar', $event)"
-          @update-use-network-proxy="emit('updateUseNetworkProxy', $event)"
           @update-workspace-pane-layout="
             emit('updateWorkspacePaneLayout', $event)
           "

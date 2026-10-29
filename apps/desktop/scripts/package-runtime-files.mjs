@@ -6,8 +6,6 @@ export const REQUIRED_RUNTIME_FILES = [
   "package.json",
   "out/main/index.js",
   "out/main/utilities/core-entry.js",
-  "out/main/utilities/agent-entry.js",
-  "out/main/utilities/tool-entry.js",
   "out/main/utilities/conversation-storage/worker-entry.js",
   "out/preload/index.js",
   "out/preload/assistant-guest.js",

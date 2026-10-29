@@ -93,4 +93,6 @@ it("vendors Sharp with a real native codec into an isolated packaged runtime dir
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+  // Vendoring performs a real isolated pnpm install of the runtime tree,
+  // which routinely exceeds the default 5s test timeout.
+}, 240_000);

@@ -9,7 +9,7 @@ import { safeErrorDetails } from "./errors";
 import type { IpcCommandContext } from "./command-types";
 
 export async function handleConversationHistoryCommands(
-  ctx: Pick<IpcCommandContext, "supervisor" | "activeRuns">,
+  ctx: Pick<IpcCommandContext, "supervisor">,
   command: CommandEnvelope
 ): Promise<CommandResult | undefined> {
   if (!Object.hasOwn(ConversationHistoryResultSchemas, command.type)) return;
@@ -23,11 +23,7 @@ export async function handleConversationHistoryCommands(
       (operation) => operation.type === "setDeleted"
     );
   const release = managing
-    ? acquireConversationOperation(
-        ctx.activeRuns,
-        command.payload.sessionId,
-        "management"
-      )
+    ? acquireConversationOperation(command.payload.sessionId, "management")
     : () => {};
   if (!release)
     return {

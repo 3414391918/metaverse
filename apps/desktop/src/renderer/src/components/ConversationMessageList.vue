@@ -2,17 +2,12 @@
 import { ref } from "vue";
 import { useConversationContentGroups } from "../composables/useConversationContentGroups";
 import { useConversationWindowPins } from "../composables/conversation-window/useConversationWindowPins";
-import { useConversationMessageEditing } from "../composables/useConversationMessageEditing";
 import { provideConversationDisclosureState } from "../composables/conversationDisclosureState";
 import type { LongWorkspaceIndexSnapshot } from "@deepwrite/contracts";
 import type { LongWorkspaceProposalItem } from "../composables/useLongWorkspaceProposals";
 import { useConversationSelectionInsertion } from "../composables/useConversationSelectionInsertion";
 import type { AgentWelcomeContent } from "../data/agentWelcome";
-import type {
-  ChatMessage,
-  ConversationMessageRewriteRequest,
-  EditorTextReference
-} from "../types/conversation";
+import type { ChatMessage, EditorTextReference } from "../types/conversation";
 import AppIcon from "./AppIcon.vue";
 import ConversationMessageItem from "./ConversationMessageItem.vue";
 
@@ -24,10 +19,6 @@ const props = withDefaults(
     deferHistoryRendering?: boolean;
     conversationSessionId?: string;
     allowLiveEditReview?: boolean;
-    canRewriteHistory?: boolean;
-    submitEditedMessage?:
-      | ((request: ConversationMessageRewriteRequest) => Promise<boolean>)
-      | undefined;
     longProposalItems?: readonly LongWorkspaceProposalItem[];
     longWorkspaceIndex?: LongWorkspaceIndexSnapshot | null;
     welcomeContent?: AgentWelcomeContent;
@@ -39,7 +30,6 @@ const props = withDefaults(
   {
     allowLiveEditReview: false,
     deferHistoryRendering: true,
-    canRewriteHistory: false,
     longProposalItems: () => [],
     longWorkspaceIndex: null,
     handleConversationWheel: () => undefined,
@@ -68,18 +58,10 @@ const emit = defineEmits<{
 }>();
 
 provideConversationDisclosureState(() => props.conversationSessionId ?? "");
-const { editingMessageId, messageIsEditable, requestEdit, cancelEdit } =
-  useConversationMessageEditing({
-    messages: () => props.messages,
-    sessionId: () => props.conversationSessionId,
-    responding: () => props.responding,
-    canRewrite: () =>
-      Boolean(props.canRewriteHistory && props.submitEditedMessage)
-  });
 const scroller = ref<HTMLElement>();
 const pinnedIds = useConversationWindowPins({
   container: scroller,
-  editingIds: () => (editingMessageId.value ? [editingMessageId.value] : []),
+  editingIds: () => [],
   attribute: "data-conversation-message-id"
 });
 const { groups, canDefer } = useConversationContentGroups({
@@ -142,9 +124,6 @@ const { handleConversationContextMenu } = useConversationSelectionInsertion({
           v-for="message in group.messages"
           :key="message.id"
           :message="message"
-          :editable="messageIsEditable(message)"
-          :editing="editingMessageId === message.id"
-          :submit-edited-message="submitEditedMessage"
           :allow-live-edit-review="allowLiveEditReview"
           :long-proposal-items="longProposalItems"
           :long-workspace-index="longWorkspaceIndex"
@@ -157,8 +136,6 @@ const { handleConversationContextMenu } = useConversationSelectionInsertion({
             emit('retryLongProposalPreview', $event)
           "
           @locate-long-proposal="emit('locateLongProposal', $event)"
-          @request-edit="requestEdit"
-          @cancel-edit="cancelEdit"
         />
       </div>
     </div>

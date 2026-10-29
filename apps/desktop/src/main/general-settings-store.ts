@@ -15,7 +15,6 @@ interface DiskGeneralSettings extends Omit<
   | "defaultTextViewMode"
   | "bodyTextFormats"
   | "showContextUsage"
-  | "useNetworkProxy"
 > {
   version: 1 | 2;
   permissionMode: GeneralSettings["permissionMode"] | "full-access";
@@ -23,7 +22,6 @@ interface DiskGeneralSettings extends Omit<
   bodyTextFormats?: GeneralSettings["bodyTextFormats"];
   defaultTextViewMode?: GeneralSettings["defaultTextViewMode"];
   showContextUsage?: boolean;
-  useNetworkProxy?: boolean;
 }
 
 function isNodeError(error: unknown, code: string): boolean {
@@ -87,7 +85,6 @@ export class GeneralSettingsStore {
         language: candidate.language,
         showInMenuBar: candidate.showInMenuBar,
         showContextUsage: candidate.showContextUsage,
-        useNetworkProxy: candidate.useNetworkProxy,
         workspacePaneLayout: candidate.workspacePaneLayout,
         defaultTextViewMode: candidate.defaultTextViewMode,
         bodyTextFormats: candidate.bodyTextFormats
@@ -103,6 +100,8 @@ export class GeneralSettingsStore {
         // Apply the new approval defaults once; later user choices stay intact.
         settings.permissionMode = "auto-approve";
         settings.autoApproveCrossStageOperations = true;
+        await atomicWriteJson(this.settingsPath, { version: 2, ...settings });
+      } else if ("useNetworkProxy" in candidate) {
         await atomicWriteJson(this.settingsPath, { version: 2, ...settings });
       }
       return GeneralSettingsSnapshotSchema.parse({

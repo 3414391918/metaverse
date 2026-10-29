@@ -13,7 +13,7 @@ describe("packaged Core storage worker inventory", () => {
       )
     ).toThrow("out/renderer/app-icon.png");
   });
-  it("requires the nested worker entry in addition to the existing three utilities", () => {
+  it("requires the nested worker entry in addition to the Core utility entry", () => {
     expect(() =>
       validateRuntimeFiles(
         REQUIRED_RUNTIME_FILES.filter(
@@ -50,7 +50,7 @@ describe("packaged Core storage worker inventory", () => {
         ],
         (file) => sources.get(file) ?? ""
       ).checkedModules
-    ).toBe(11);
+    ).toBe(9);
   });
   it("ignores documentation import examples while checking executable module edges", () => {
     expect(
@@ -58,6 +58,6 @@ describe("packaged Core storage worker inventory", () => {
         REQUIRED_RUNTIME_FILES,
         () => "/** @param {import('./request').default} value */"
       ).checkedModules
-    ).toBe(9);
+    ).toBe(7);
   });
 });

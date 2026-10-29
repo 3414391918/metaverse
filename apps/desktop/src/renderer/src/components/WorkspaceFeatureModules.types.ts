@@ -16,7 +16,6 @@ export interface SettingsFeatureModule {
   language: AppLanguage;
   showContextUsage: boolean;
   showInMenuBar: boolean;
-  useNetworkProxy: boolean;
   workspacePaneLayout: WorkspacePaneLayout;
   bodyTextFormats: BodyTextFormats;
   longAgentSettings: LongAgentSettings | null;

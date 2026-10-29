@@ -11,11 +11,8 @@ function event(value: unknown): SystemEventEnvelope {
 }
 
 function createDependencies(order: string[] = []) {
-  const conversation = {
-    handleEvent: vi.fn(() => order.push("conversation"))
-  };
   const dependencies: WorkspaceSystemEventRouteDependencies = {
-    revisionAnalysis: { handleEvent: vi.fn() },
+    revisionAnalysis: { handleEvent: vi.fn(() => order.push("revision")) },
     subagentAuthoring: {
       handleEvent: vi.fn(() => order.push("subagent"))
     },
@@ -27,23 +24,13 @@ function createDependencies(order: string[] = []) {
       order.push("long");
     }),
     stageLibraryEditProposal: vi.fn(() => order.push("library-edit")),
-    allConversations: vi.fn(() => [conversation]),
-    scheduleQueuedAgentEdits: vi.fn((predicate) => {
-      expect(
-        predicate({ sessionId: "session-current", runId: "run-current" })
-      ).toBe(true);
-      expect(
-        predicate({ sessionId: "session-other", runId: "run-current" })
-      ).toBe(false);
-      order.push("queued-edits");
-    }),
     onAsyncError: vi.fn()
   };
-  return { conversation, dependencies };
+  return { dependencies };
 }
 
 describe("workspace system event routes", () => {
-  it("preserves feature, proposal, conversation, and terminal scheduling order", () => {
+  it("preserves feature and proposal routing order", () => {
     const center = createSystemEventCenter();
     const order: string[] = [];
     const { dependencies } = createDependencies(order);
@@ -59,7 +46,7 @@ describe("workspace system event routes", () => {
       })
     );
 
-    expect(order).toEqual(["subagent", "long", "conversation", "queued-edits"]);
+    expect(order).toEqual(["revision", "subagent", "long"]);
   });
 
   it.each([
@@ -88,9 +75,25 @@ describe("workspace system event routes", () => {
     }
   );
 
+  it("routes library editor mutations through the library staging path", () => {
+    const center = createSystemEventCenter();
+    const order: string[] = [];
+    const { dependencies } = createDependencies(order);
+    registerWorkspaceSystemEventRoutes(center, dependencies);
+
+    center.publish(
+      event({
+        type: "library.editor_mutation",
+        payload: {}
+      })
+    );
+
+    expect(order).toEqual(["revision", "subagent", "long", "library-edit"]);
+  });
+
   it("reports rejected async proposal handlers without interrupting delivery", async () => {
     const center = createSystemEventCenter();
-    const { conversation, dependencies } = createDependencies();
+    const { dependencies } = createDependencies();
     const failure = new Error("proposal-handler-failed");
     dependencies.handleLongWorkspaceProposal = vi.fn(() =>
       Promise.reject(failure)
@@ -101,7 +104,6 @@ describe("workspace system event routes", () => {
     center.publish(received);
     await Promise.resolve();
 
-    expect(conversation.handleEvent).toHaveBeenCalledWith(received);
     expect(dependencies.onAsyncError).toHaveBeenCalledWith(failure, received);
   });
 
@@ -115,7 +117,6 @@ describe("workspace system event routes", () => {
     center.publish(event({ type: "agent.usage_observed", payload: {} }));
 
     expect(dependencies.revisionAnalysis!.handleEvent).not.toHaveBeenCalled();
-    expect(dependencies.allConversations).not.toHaveBeenCalled();
     expect(dependencies.handleLongWorkspaceProposal).not.toHaveBeenCalled();
   });
 });

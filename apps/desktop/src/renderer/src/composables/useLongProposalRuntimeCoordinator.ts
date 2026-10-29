@@ -161,15 +161,6 @@ export function useLongProposalRuntimeCoordinator(
         workspaceProposals.quarantineSession(bookId, sessionId);
       }
     }
-    for (const [, conversation] of entries) {
-      if (!conversation.isBusy.value) continue;
-      const stopAccepted = await conversation.stopGeneration();
-      if (!stopAccepted) {
-        throw new Error(
-          "小说智能体正在启动，暂时无法安全移除项目；请稍后重试。"
-        );
-      }
-    }
     workspaceProposals.discardBook(bookId);
   }
 
@@ -193,22 +184,6 @@ export function useLongProposalRuntimeCoordinator(
   ): void {
     disposeBookConversations(bookId, options);
     disposeBookProposalState(bookId);
-  }
-
-  async function stopActiveGeneration(): Promise<void> {
-    const conversation = context.conversations.active();
-    if (!conversation) return;
-    try {
-      if (await conversation.stopGeneration()) {
-        notifications.info("已停止小说生成。");
-      }
-    } catch (error: unknown) {
-      notifications.error(
-        error instanceof Error
-          ? error.message
-          : "停止小说生成失败，请稍后重试。"
-      );
-    }
   }
 
   async function approveProposal(eventId: string): Promise<void> {
@@ -280,7 +255,6 @@ export function useLongProposalRuntimeCoordinator(
     disposeBookProposalState,
     disposeBookConversations,
     disposeBookRuntime,
-    stopActiveGeneration,
     approveProposal,
     rejectProposal,
     retryProposalPreview,

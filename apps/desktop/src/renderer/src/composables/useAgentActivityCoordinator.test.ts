@@ -16,11 +16,7 @@ import type {
   CurrentAgentActivityView
 } from "../types/agentActivity";
 import type { ChatMessage } from "../types/conversation";
-import {
-  createDeferredApi,
-  document,
-  useAgentConversation
-} from "./useAgentConversation.test-support";
+import { useAgentConversation } from "./useAgentConversation";
 import { useConversationStore } from "../stores/conversationStore";
 
 function controller(id: string): AgentConversationController {
@@ -223,13 +219,22 @@ describe("useAgentActivityCoordinator", () => {
     expect(test.activity.collapsed.value).toBe(false);
   });
 
-  it("shows a real conversation controller as soon as sending starts", async () => {
-    const deferred = createDeferredApi();
+  it("shows a real conversation controller as busy activity while history loads", async () => {
+    let release!: (value: unknown) => void;
+    const loadHistoryRecord = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
+    );
     const realController = useAgentConversation({
-      api: () => deferred.api,
-      idleTimeoutMs: 10_000
+      api: () => undefined,
+      loadHistoryRecord: loadHistoryRecord as never
     });
-    realController.draft.value = "开始人物设计";
+    const opening = realController.openConversation("session-history-two");
+    await nextTick();
+    expect(realController.isBusy.value).toBe(true);
+
     const controllers = shallowRef(
       new Map<string, AgentConversationController>([
         ["book-one:character_design", realController]
@@ -250,15 +255,20 @@ describe("useAgentActivityCoordinator", () => {
         ),
         registryRevision: ref(0),
         currentView,
-        resolveDescriptor: () => undefined,
+        resolveDescriptor: (key) =>
+          key === "book-one:character_design"
+            ? {
+                conversationKey: key,
+                agentLabel: "人物智能体",
+                contextLabel: "作品一 · 人物",
+                targetResourceId: "resource-one"
+              }
+            : undefined,
         navigate: async () => "navigated",
         notifications: { warning: vi.fn() }
       })
     )!;
 
-    const sending = realController.sendMessage(document);
-    await nextTick();
-    expect(realController.isBusy.value).toBe(true);
     expect(activity.items.value).toMatchObject([
       {
         conversationKey: "book-one:character_design",
@@ -266,8 +276,27 @@ describe("useAgentActivityCoordinator", () => {
       }
     ]);
 
-    deferred.rejectPrompt(0, new Error("cancelled"));
-    await sending;
+    release({
+      sessionId: "session-history-two",
+      messages: [
+        {
+          id: "user-history-two",
+          role: "user",
+          content: "历史问题",
+          createdAt: "2026-08-19T00:00:00.000Z",
+          status: "completed"
+        }
+      ],
+      draft: "",
+      approvalMode: "request-approval",
+      createdAt: "2026-08-19T00:00:00.000Z",
+      updatedAt: "2026-08-19T00:00:00.000Z",
+      temperature: 0.7
+    });
+    await opening;
+    await nextTick();
+    expect(realController.isBusy.value).toBe(false);
+
     activity.dispose();
     nestedScope.stop();
     realController.dispose();

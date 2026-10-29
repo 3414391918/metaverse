@@ -12,11 +12,6 @@ import { createConversationRegistryHistory } from "../renderer/src/composables/c
 import { loadConversationHistoryRecord } from "../renderer/src/utils/conversationHistoryRecordLoader";
 import { createConversationPersistenceState } from "../renderer/src/stores/conversationPersistenceState";
 import { useAgentConversation } from "../renderer/src/composables/useAgentConversation";
-import {
-  createDeferredApi,
-  document,
-  runtime
-} from "../renderer/src/composables/useAgentConversation.test-support";
 
 const key = "conversation-history:delete-recovery-integration";
 const date = "2026-09-11T00:00:00.000Z";
@@ -91,9 +86,8 @@ async function fixture() {
     state.discardPendingPersistence();
     state.disconnect();
   });
-  const agent = createDeferredApi();
   const controller = useAgentConversation({
-    api: () => agent.api,
+    api: () => undefined,
     ...history.hooks,
     flushPersistence: (options) => state.flushPersistence(key, options),
     onPersistenceChange: () =>
@@ -129,7 +123,6 @@ async function fixture() {
     api,
     state,
     controller,
-    agent,
     close: () => beforeClose(),
     loseOrdinaryAck: (sessionId) => {
       loseOrdinarySession = sessionId;
@@ -217,29 +210,32 @@ describe("pending deletion recovery through the real per-scope queue", () => {
     ).toEqual([]);
   });
 
-  it("prevents prompts to the isolated identity but permits prompts after switching to another session", async () => {
-    const { controller, state, agent } = await fixture();
+  it("keeps an unresolved deletion deferred and isolates it from ordinary persistence on another session", async () => {
+    const { controller, state, read, close } = await fixture();
     await expect(controller.deleteConversation("first")).rejects.toThrow(
       "delete receipt lost"
     );
     controller.draft.value = "late draft";
-    expect(controller.canSend.value).toBe(false);
-    await controller.sendMessage(document);
-    expect(agent.promptCount()).toBe(0);
-    expect(controller.draft.value).toBe("late draft");
+    expect(state.persistenceProgress.value.get(key).status).toBe("pending");
+    // The unresolved deletion keeps every writer for this scope deferred.
+    await expect(state.flushPersistence(key)).rejects.toThrow(
+      "删除结果尚未确认"
+    );
     expect(await controller.openConversation("second")).toBe(true);
     controller.draft.value = "another session question";
-    expect(controller.canSend.value).toBe(true);
-    const sending = controller.sendMessage(document);
-    await vi.waitFor(() => expect(agent.promptCount()).toBe(1));
-    agent.resolveAccepted(0, {
-      sessionId: "second",
-      runId: "other-session-run",
-      acceptedAt: date,
-      runtime
-    });
-    await sending;
-    expect(state.persistenceProgress.value.get(key).status).not.toBe("saved");
+    await expect(state.flushPersistence(key)).rejects.toThrow(
+      "删除结果尚未确认"
+    );
+    // Resolving the deletion releases the queued writers in order.
+    expect(await controller.deleteConversation("first")).toBe(true);
+    await state.flushPersistence(key);
+    await close();
+    expect((await read("second")).draft).toBe("another session question");
+    // The isolated identity kept its unconfirmed state on disk.
+    expect((await read("first", true)).messages[0].content).toBe(
+      "first content"
+    );
+    expect(state.persistenceProgress.value.get(key).status).toBe("saved");
   });
 
   it("recovers late edits while still active and strictly blocks exit until deletion resolution and the replacement save are confirmed", async () => {

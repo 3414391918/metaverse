@@ -30,7 +30,13 @@ let announcedReady = false;
 let forks = 0;
 const readyWorkers = new Set();
 function announceReady() {
-  if (announcedReady || !rendererReady || readyWorkers.size !== 3) return;
+  if (
+    announcedReady ||
+    !rendererReady ||
+    readyWorkers.size !== 1 ||
+    !readyWorkers.has("core")
+  )
+    return;
   announcedReady = true;
   record("ready");
 }

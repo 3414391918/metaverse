@@ -1,6 +1,7 @@
 node_modules/
 /resources/
 /metadata/
+/.runtime/
 .pnpm-store/
 out/
 release/

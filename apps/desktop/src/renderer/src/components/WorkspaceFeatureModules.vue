@@ -38,7 +38,6 @@ const emit = defineEmits<{
   updateLanguage: [language: AppLanguage];
   updateShowContextUsage: [enabled: boolean];
   updateShowInMenuBar: [enabled: boolean];
-  updateUseNetworkProxy: [enabled: boolean];
   updateWorkspacePaneLayout: [layout: WorkspacePaneLayout];
   updateBodyTextFormat: [change: BodyTextFormatChange];
   retryLongAgents: [];
@@ -116,7 +115,6 @@ const emit = defineEmits<{
     :language="module.language"
     :show-context-usage="module.showContextUsage"
     :show-in-menu-bar="module.showInMenuBar"
-    :use-network-proxy="module.useNetworkProxy"
     :workspace-pane-layout="module.workspacePaneLayout"
     :body-text-formats="module.bodyTextFormats"
     :long-agent-settings="module.longAgentSettings"
@@ -142,7 +140,6 @@ const emit = defineEmits<{
     @update-language="emit('updateLanguage', $event)"
     @update-show-context-usage="emit('updateShowContextUsage', $event)"
     @update-show-in-menu-bar="emit('updateShowInMenuBar', $event)"
-    @update-use-network-proxy="emit('updateUseNetworkProxy', $event)"
     @update-workspace-pane-layout="emit('updateWorkspacePaneLayout', $event)"
     @update-body-text-format="emit('updateBodyTextFormat', $event)"
     @retry-long-agents="emit('retryLongAgents')"

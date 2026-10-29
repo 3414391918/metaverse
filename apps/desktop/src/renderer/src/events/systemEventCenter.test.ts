@@ -34,7 +34,7 @@ function workerRestartedEvent(id: string): WorkerRestartedEvent {
     timestamp: "2026-08-14T00:00:01.000Z",
     context: { correlationId: id },
     payload: {
-      worker: "agent",
+      worker: "core",
       reason: "test restart",
       restartedAt: "2026-08-14T00:00:01.000Z"
     }

@@ -6,7 +6,6 @@ import { useSettingsStore } from "../stores/settingsStore";
 import { loadSettingsFeature } from "../components/loadSettingsFeature";
 import { buildSettingsFeatureModule } from "./settingsFeatureModule";
 import type { WorkspaceMainView } from "../stores/layoutStore";
-import type { SubagentAuthoringController } from "./useSubagentAuthoring";
 import {
   useWorkspaceFeatureHostCoordinator,
   type WorkspaceFeatureHostCoordinatorOptions
@@ -29,8 +28,6 @@ function workspace(path: string) {
 interface HarnessOverrides {
   runtimeAvailable?: boolean;
   saveBeforeLeaving?: () => Promise<boolean>;
-  ensureRevisionLoaded?: () => Promise<unknown>;
-  ensureAuthoringLoaded?: () => Promise<unknown>;
   loadDirectory?: () => Promise<WorkspaceDirectorySettings>;
   chooseDirectory?: () => Promise<WorkspaceDirectorySettings | null>;
   loaderOverrides?: Partial<WorkspaceFeatureHostCoordinatorOptions["loaders"]>;
@@ -47,12 +44,6 @@ function createHarness(overrides: HarnessOverrides = {}) {
   );
   const newLibraryConversation = vi.fn(),
     newLongConversation = vi.fn();
-  const ensureRevisionLoaded = vi.fn(
-      overrides.ensureRevisionLoaded ?? (async () => undefined)
-    ),
-    ensureAuthoringLoaded = vi.fn(
-      overrides.ensureAuthoringLoaded ?? (async () => undefined)
-    );
   const listDirectory = vi.fn(
       overrides.loadDirectory ?? (async () => workspace("/workspace-a"))
     ),
@@ -77,9 +68,6 @@ function createHarness(overrides: HarnessOverrides = {}) {
   };
   const errors: string[] = [],
     successes: string[] = [];
-  const authoringController = shallowRef<SubagentAuthoringController | null>(
-    null
-  );
   const coordinator = useWorkspaceFeatureHostCoordinator({
     api: () => (runtimeAvailable ? api : undefined),
     view: {
@@ -111,14 +99,11 @@ function createHarness(overrides: HarnessOverrides = {}) {
     saveBeforeLeaving,
     newLibraryConversation,
     newLongConversation,
-    ensureRevisionLoaded,
-    ensureAuthoringLoaded,
     listDirectory,
     chooseDirectory,
     loaders,
     errors,
     successes,
-    authoringController,
     setRuntimeAvailable: (value: boolean) => {
       runtimeAvailable = value;
     }
@@ -205,8 +190,6 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
 
     expect(harness.currentView.value).toBe("workspace");
     expect(harness.workspaceMainView.value).toBe("conversation");
-    expect(harness.ensureRevisionLoaded).not.toHaveBeenCalled();
-    expect(harness.ensureAuthoringLoaded).not.toHaveBeenCalled();
     expect(harness.listDirectory).not.toHaveBeenCalled();
     expect(
       Object.values(harness.loaders).every(
@@ -244,8 +227,6 @@ describe("useWorkspaceFeatureHostCoordinator", () => {
     await harness.coordinator.openWorkspaceDialog("revision-analysis");
     await harness.coordinator.openAgentTeams();
     expect(harness.workspaceMainView.value).toBe("tools");
-    expect(harness.ensureRevisionLoaded).not.toHaveBeenCalled();
-    expect(harness.ensureAuthoringLoaded).not.toHaveBeenCalled();
   });
 
   it("keeps manual pages independent of retired agent settings", async () => {

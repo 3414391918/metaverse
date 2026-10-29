@@ -1,21 +1,16 @@
 import { utilityProcess, type UtilityProcess } from "electron";
 import { join } from "node:path";
 import {
-  UtilityInternalCommandResultMessageSchema,
   UtilityOutboundMessageSchema,
   type CommandEnvelope,
   type CommandResult,
   type SystemEventEnvelope,
   type UtilityHealthPayload,
-  type UtilityInternalCommandRequestMessage,
-  type UtilityInternalCommandTarget,
   type UtilityWorkerName
 } from "@deepwrite/contracts";
 import { createId, nowIso } from "@deepwrite/shared";
 
 type WorkerStatus = UtilityHealthPayload["status"];
-
-const MAX_PENDING_INTERNAL_COMMANDS = 32;
 
 export class UtilityCommandTimeoutError extends Error {
   constructor(message: string) {
@@ -41,47 +36,10 @@ interface PendingShutdown {
   timer: NodeJS.Timeout;
 }
 
-interface PendingInternalCommandBridge {
-  source: "agent";
-  target: UtilityInternalCommandTarget;
-  requestId: string;
-  parentRequestId: string;
-  targetRequestId: string;
-  commandId: string;
-}
-
-export interface UtilityInternalCommandAuthorizationContext {
-  source: UtilityWorkerName;
-  target: UtilityInternalCommandTarget;
-  message: UtilityInternalCommandRequestMessage;
-}
-
-export type UtilityInternalCommandAuthorizationResult =
-  | boolean
-  | {
-      authorized: boolean;
-      /** Stable Main-owned reason code for diagnostics and tests. */
-      code?: string;
-      message?: string;
-    };
-
 export interface UtilitySupervisorOptions {
   onUtilityEvent(event: SystemEventEnvelope, worker: UtilityWorkerName): void;
   onUnexpectedExit(worker: UtilityWorkerName, reason: string): void;
   onWorkerRestarted(worker: UtilityWorkerName, reason: string): void;
-  internalCommandAllowlist?: Readonly<
-    Partial<
-      Record<UtilityInternalCommandTarget, readonly CommandEnvelope["type"][]>
-    >
-  >;
-  /**
-   * Optional run-time authorization after the static allowlist and before
-   * forwarding. A false/denied decision is always surfaced to Agent as
-   * utility.internal_command_unauthorized.
-   */
-  internalCommandAuthorize?: (
-    context: UtilityInternalCommandAuthorizationContext
-  ) => UtilityInternalCommandAuthorizationResult;
 }
 
 class UtilityWorker {
@@ -106,10 +64,6 @@ class UtilityWorker {
     private readonly onUtilityEvent: (
       event: SystemEventEnvelope,
       worker: UtilityWorkerName
-    ) => void,
-    private readonly onInternalCommandRequest: (
-      source: UtilityWorkerName,
-      message: UtilityInternalCommandRequestMessage
     ) => void,
     private readonly onExit: (worker: UtilityWorkerName, reason: string) => void
   ) {}
@@ -254,34 +208,7 @@ class UtilityWorker {
     pending.reject(error);
   }
 
-  sendInternalCommandResult(
-    target: UtilityInternalCommandTarget,
-    requestId: string,
-    parentRequestId: string,
-    result: CommandResult
-  ): boolean {
-    const child = this.child;
-    if (!child || this.isStopping || this.name !== "agent") {
-      return false;
-    }
-    try {
-      child.postMessage(
-        UtilityInternalCommandResultMessageSchema.parse({
-          kind: "utility.internal.command.result",
-          worker: "agent",
-          target,
-          requestId,
-          parentRequestId,
-          result
-        })
-      );
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  shutdown(timeoutMs = 1800): Promise<void> {
+  shutdown(timeoutMs = 30_000): Promise<void> {
     this.isStopping = true;
     const child = this.child;
     if (!child) {
@@ -418,11 +345,6 @@ class UtilityWorker {
       return;
     }
 
-    if (message.kind === "utility.internal.command.request") {
-      this.onInternalCommandRequest(this.name, message);
-      return;
-    }
-
     this.onUtilityEvent(message.event, this.name);
   }
 
@@ -451,42 +373,29 @@ class UtilityWorker {
   }
 }
 
+/** Main supervises exactly one utility worker: the Core conversation runtime. */
 export class UtilitySupervisor {
-  private readonly workers: Map<UtilityWorkerName, UtilityWorker>;
-  private readonly restartTimers = new Map<UtilityWorkerName, NodeJS.Timeout>();
-  private readonly restartReasons = new Map<UtilityWorkerName, string>();
-  private readonly pendingInternalCommands = new Map<
-    string,
-    PendingInternalCommandBridge
-  >();
+  private readonly core: UtilityWorker;
+  private restartTimer: NodeJS.Timeout | undefined;
+  private restartReason: string | undefined;
   private shuttingDown = false;
 
   constructor(private readonly options: UtilitySupervisorOptions) {
-    const makeWorker = (name: UtilityWorkerName): UtilityWorker =>
-      new UtilityWorker(
-        name,
-        join(__dirname, "utilities", `${name}-entry.js`),
-        (worker, reason) => this.handleUnexpectedExit(worker, reason),
-        (worker) => this.handleWorkerReady(worker),
-        options.onUtilityEvent,
-        (source, message) => this.handleInternalCommandRequest(source, message),
-        (worker, reason) => this.handleWorkerExit(worker, reason)
-      );
-
-    this.workers = new Map([
-      ["core", makeWorker("core")],
-      ["agent", makeWorker("agent")],
-      ["tool", makeWorker("tool")]
-    ]);
+    this.core = new UtilityWorker(
+      "core",
+      join(__dirname, "utilities", "core-entry.js"),
+      (worker, reason) => this.handleUnexpectedExit(worker, reason),
+      (worker) => this.handleWorkerReady(worker),
+      options.onUtilityEvent,
+      (worker, reason) => this.handleWorkerExit(worker, reason)
+    );
   }
 
   startAll(): void {
     if (this.shuttingDown) {
       return;
     }
-    for (const worker of this.workers.values()) {
-      worker.start();
-    }
+    this.core.start();
   }
 
   requestCommand(
@@ -494,8 +403,7 @@ export class UtilitySupervisor {
     command: CommandEnvelope,
     timeoutMs?: number
   ): Promise<CommandResult> {
-    const target = this.workers.get(worker);
-    if (!target) {
+    if (worker !== "core") {
       return Promise.resolve({
         status: "rejected",
         requestId: command.id,
@@ -505,7 +413,7 @@ export class UtilitySupervisor {
         }
       });
     }
-    return target.requestCommand(command, timeoutMs);
+    return this.core.requestCommand(command, timeoutMs);
   }
 
   async collectHealth(): Promise<{
@@ -513,315 +421,61 @@ export class UtilitySupervisor {
     checkedAt: string;
     workers: UtilityHealthPayload[];
   }> {
-    const workers = await Promise.all(
-      [...this.workers.values()].map((worker) => worker.requestHealth())
-    );
-    const status = workers.every((worker) => worker.status === "ok")
-      ? "ok"
-      : workers.some((worker) => worker.status === "starting")
-        ? "starting"
-        : "degraded";
-    return { status, checkedAt: nowIso(), workers };
+    const worker = await this.core.requestHealth();
+    const status =
+      worker.status === "ok"
+        ? "ok"
+        : worker.status === "starting"
+          ? "starting"
+          : "degraded";
+    return { status, checkedAt: nowIso(), workers: [worker] };
   }
 
   async shutdownAll(): Promise<void> {
     this.shuttingDown = true;
-    for (const timer of this.restartTimers.values()) {
-      clearTimeout(timer);
+    if (this.restartTimer) {
+      clearTimeout(this.restartTimer);
+      this.restartTimer = undefined;
     }
-    this.restartTimers.clear();
-    this.restartReasons.clear();
-    this.cancelPendingInternalCommands(
-      "utility.internal_command_cancelled",
-      "Utility supervisor is shutting down."
-    );
-    await this.workers.get("agent")?.shutdown(1800);
-    await Promise.all([
-      this.workers.get("tool")?.shutdown(1800),
-      this.workers.get("core")?.shutdown(30_000)
-    ]);
+    this.restartReason = undefined;
+    await this.core.shutdown(30_000);
   }
 
   async restartWorker(name: UtilityWorkerName, reason: string): Promise<void> {
-    const worker = this.workers.get(name);
-    if (!worker || this.shuttingDown) return;
-    this.restartReasons.set(name, reason);
-    await worker.restart();
+    if (name !== "core" || this.shuttingDown) return;
+    this.restartReason = reason;
+    await this.core.restart();
   }
 
-  private handleInternalCommandRequest(
-    source: UtilityWorkerName,
-    message: UtilityInternalCommandRequestMessage
-  ): void {
-    if (source !== "agent" || message.worker !== source) {
-      return;
-    }
-
-    const sourceWorker = this.workers.get("agent");
-    if (!sourceWorker) {
-      return;
-    }
-    if (this.shuttingDown) {
-      sourceWorker.sendInternalCommandResult(
-        message.target,
-        message.requestId,
-        message.parentRequestId,
-        this.createInternalCommandRejection(
-          message.command.id,
-          "utility.internal_command_cancelled",
-          "Utility supervisor is shutting down."
-        )
-      );
-      return;
-    }
-    const allowedCommandTypes =
-      this.options.internalCommandAllowlist?.[message.target] ?? [];
-    if (!allowedCommandTypes.includes(message.command.type)) {
-      sourceWorker.sendInternalCommandResult(
-        message.target,
-        message.requestId,
-        message.parentRequestId,
-        this.createInternalCommandRejection(
-          message.command.id,
-          "utility.internal_command_not_allowed",
-          `${message.command.type} is not allowed for the ${message.target} utility bridge.`
-        )
-      );
-      return;
-    }
-    const authorization = this.authorizeInternalCommand({
-      source,
-      target: message.target,
-      message
-    });
-    if (!authorization.authorized) {
-      sourceWorker.sendInternalCommandResult(
-        message.target,
-        message.requestId,
-        message.parentRequestId,
-        this.createInternalCommandRejection(
-          message.command.id,
-          "utility.internal_command_unauthorized",
-          authorization.message ??
-            "The internal utility command is not authorized for the active run.",
-          authorization.code
-            ? { authorizationCode: authorization.code }
-            : undefined
-        )
-      );
-      return;
-    }
-    if (this.pendingInternalCommands.has(message.requestId)) {
-      return;
-    }
-    if (this.pendingInternalCommands.size >= MAX_PENDING_INTERNAL_COMMANDS) {
-      sourceWorker.sendInternalCommandResult(
-        message.target,
-        message.requestId,
-        message.parentRequestId,
-        this.createInternalCommandRejection(
-          message.command.id,
-          "utility.internal_command_limit",
-          "Too many internal utility commands are pending."
-        )
-      );
-      return;
-    }
-
-    const targetWorker = this.workers.get(message.target);
-    if (!targetWorker) {
-      sourceWorker.sendInternalCommandResult(
-        message.target,
-        message.requestId,
-        message.parentRequestId,
-        this.createInternalCommandRejection(
-          message.command.id,
-          "utility.internal_command_unknown_target",
-          `Unknown internal utility target: ${message.target}`
-        )
-      );
-      return;
-    }
-
-    const targetRequestId = createId(`internal_${message.target}`);
-    this.pendingInternalCommands.set(message.requestId, {
-      source: "agent",
-      target: message.target,
-      requestId: message.requestId,
-      parentRequestId: message.parentRequestId,
-      targetRequestId,
-      commandId: message.command.id
-    });
-
-    void targetWorker
-      .requestCommand(message.command, message.timeoutMs, targetRequestId)
-      .then((result) => {
-        this.completeInternalCommand(message.requestId, result);
-      })
-      .catch((error: unknown) => {
-        const timedOut = error instanceof UtilityCommandTimeoutError;
-        this.completeInternalCommand(
-          message.requestId,
-          this.createInternalCommandRejection(
-            message.command.id,
-            timedOut
-              ? "utility.internal_command_timeout"
-              : "utility.internal_command_failed",
-            timedOut
-              ? `${message.target} utility internal command timed out.`
-              : error instanceof Error
-                ? error.message
-                : "Internal utility command failed."
-          )
-        );
-      });
-  }
-
-  private completeInternalCommand(
-    requestId: string,
-    result: CommandResult
-  ): void {
-    const pending = this.pendingInternalCommands.get(requestId);
-    if (!pending) {
-      return;
-    }
-    this.pendingInternalCommands.delete(requestId);
-    const correlatedResult =
-      result.requestId === pending.commandId
-        ? result
-        : this.createInternalCommandRejection(
-            pending.commandId,
-            "utility.internal_command_invalid_result",
-            "Internal utility result did not match the requested command."
-          );
-    this.workers
-      .get(pending.source)
-      ?.sendInternalCommandResult(
-        pending.target,
-        pending.requestId,
-        pending.parentRequestId,
-        correlatedResult
-      );
-  }
-
-  private handleWorkerExit(worker: UtilityWorkerName, reason: string): void {
-    for (const pending of [...this.pendingInternalCommands.values()]) {
-      if (pending.source === worker) {
-        this.pendingInternalCommands.delete(pending.requestId);
-        this.workers
-          .get(pending.target)
-          ?.cancelCommandRequest(
-            pending.targetRequestId,
-            new Error(`Internal command source exited: ${reason}`)
-          );
-        continue;
-      }
-      if (pending.target === worker) {
-        this.pendingInternalCommands.delete(pending.requestId);
-        this.workers
-          .get(pending.source)
-          ?.sendInternalCommandResult(
-            pending.target,
-            pending.requestId,
-            pending.parentRequestId,
-            this.createInternalCommandRejection(
-              pending.commandId,
-              "utility.internal_command_target_exited",
-              `${worker} utility exited before completing the internal command.`
-            )
-          );
-      }
-    }
-  }
-
-  private cancelPendingInternalCommands(code: string, message: string): void {
-    for (const pending of [...this.pendingInternalCommands.values()]) {
-      this.pendingInternalCommands.delete(pending.requestId);
-      this.workers
-        .get(pending.target)
-        ?.cancelCommandRequest(pending.targetRequestId, new Error(message));
-      this.workers
-        .get(pending.source)
-        ?.sendInternalCommandResult(
-          pending.target,
-          pending.requestId,
-          pending.parentRequestId,
-          this.createInternalCommandRejection(pending.commandId, code, message)
-        );
-    }
-  }
-
-  private createInternalCommandRejection(
-    commandId: string,
-    code: string,
-    message: string,
-    details?: Record<string, unknown>
-  ): CommandResult {
-    return {
-      status: "rejected",
-      requestId: commandId,
-      error: {
-        code,
-        message,
-        ...(details ? { details } : {})
-      }
-    };
-  }
-
-  private authorizeInternalCommand(
-    context: UtilityInternalCommandAuthorizationContext
-  ): {
-    authorized: boolean;
-    code?: string;
-    message?: string;
-  } {
-    const authorize = this.options.internalCommandAuthorize;
-    if (!authorize) {
-      return { authorized: true };
-    }
-    try {
-      const decision = authorize(context);
-      if (typeof decision === "boolean") {
-        return { authorized: decision };
-      }
-      return decision;
-    } catch (error: unknown) {
-      return {
-        authorized: false,
-        code: "authorizer_exception",
-        message:
-          error instanceof Error
-            ? error.message
-            : "The internal command authorizer failed."
-      };
-    }
+  private handleWorkerExit(_worker: UtilityWorkerName, _reason: string): void {
+    // Only the Core worker exists; no cross-worker state to reconcile.
   }
 
   private handleUnexpectedExit(
     worker: UtilityWorkerName,
     reason: string
   ): void {
-    this.restartReasons.set(worker, reason);
+    this.restartReason = reason;
     this.options.onUnexpectedExit(worker, reason);
-    if (this.shuttingDown || this.restartTimers.has(worker)) {
+    if (this.shuttingDown || this.restartTimer) {
       return;
     }
     const timer = setTimeout(() => {
-      this.restartTimers.delete(worker);
+      this.restartTimer = undefined;
       if (!this.shuttingDown) {
-        this.workers.get(worker)?.start();
+        this.core.start();
       }
     }, 250);
     timer.unref();
-    this.restartTimers.set(worker, timer);
+    this.restartTimer = timer;
   }
 
   private handleWorkerReady(worker: UtilityWorkerName): void {
-    const reason = this.restartReasons.get(worker);
+    const reason = this.restartReason;
     if (!reason) {
       return;
     }
-    this.restartReasons.delete(worker);
+    this.restartReason = undefined;
     this.options.onWorkerRestarted(worker, reason);
   }
 }

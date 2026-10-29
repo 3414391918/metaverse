@@ -4,21 +4,33 @@ import { spawn } from "node:child_process";
 export function validateSmokeSummary(summary, reopened) {
   if (
     summary.health?.status !== "ok" ||
-    summary.health?.workers?.length !== 3 ||
+    summary.health?.workers?.length !== 1 ||
+    summary.health?.workers?.[0]?.name !== "core" ||
+    summary.health?.workers?.[0]?.status !== "ok" ||
     summary.unifiedCreation?.status !== "ok" ||
     summary.unifiedCreation?.created !== true ||
-    summary.unifiedCreation?.team !== true ||
     summary.unifiedCreation?.retiredApisAbsent !== true ||
-    summary.agent?.status !== "ok" ||
-    summary.agent?.runtime?.mode !== "local-faux" ||
-    summary.agent?.completed !== true ||
+    summary.unifiedCreation?.promptTemplates?.status !== "ok" ||
+    summary.unifiedCreation?.tools?.status !== "ok" ||
     summary.conversation?.status !== "ok" ||
     summary.conversation?.staged !== true ||
     summary.conversation?.reopened !== reopened ||
     !(summary.conversation?.chunkPages >= 2) ||
     !(summary.conversation?.metadataChunkPages >= 2) ||
     summary.conversation?.unknownRetained !== true ||
-    summary.conversation?.proposalRetained !== true
+    summary.conversation?.proposalRetained !== true ||
+    summary.chapterImages?.status !== "ok" ||
+    summary.chapterImages?.copied !== true ||
+    summary.chapterImages?.replaced !== true ||
+    summary.chapterImages?.reopened !== true ||
+    summary.chapterImages?.referenceUnchanged !== true ||
+    summary.chapterImages?.rendered !== true ||
+    summary.chapterImages?.staleRejected !== true ||
+    summary.characterAppearances?.status !== "ok" ||
+    summary.characterAppearances?.created !== true ||
+    summary.characterAppearances?.copied !== true ||
+    summary.characterAppearances?.referenceIsolated !== true ||
+    summary.characterAppearances?.persisted !== true
   )
     throw new Error(
       `Packaged app returned an invalid smoke summary: ${JSON.stringify(summary)}`

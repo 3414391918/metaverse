@@ -152,41 +152,10 @@ describe("long-form renderer vertical slice: agents-writing-and-navigation", () 
     expect(appSource).not.toContain(
       'activeLongWorkspaceRefreshStatus.pending\n                    ? "正在同步保存后的最新工作区索引…"'
     );
-    const sendLongMessageSource =
-      longConversationSource
-        .split("function sendLongMessage(")[1]
-        ?.split("function synchronizeActiveRunPreferences")[0] ?? "";
-    expect(sendLongMessageSource).toContain("await nextTick()");
-    expect(
-      sendLongMessageSource.match(/confirmSendTarget\(target\)/gu)?.length
-    ).toBeGreaterThanOrEqual(4);
-    expect(
-      sendLongMessageSource.indexOf("saveActiveEditorChanges()")
-    ).toBeLessThan(sendLongMessageSource.indexOf("refreshActiveWorkspace("));
-    expect(
-      sendLongMessageSource.indexOf("refreshActiveWorkspace(")
-    ).toBeLessThan(sendLongMessageSource.indexOf("activeRuntimeContext.value"));
-    expect(sendLongMessageSource).toContain(
-      "target.conversation.sendLongMessage("
-    );
-    const sendTargetSource =
-      longConversationSource
-        .split("interface LongMessageSendTarget")[1]
-        ?.split("export interface LongConversationCoordinatorOptions")[0] ?? "";
-    for (const field of [
-      "bookId:",
-      "selectionKey:",
-      "preferredRole:",
-      "activeRoot:",
-      "chapterCardId:",
-      "fileId:",
-      "agentId:",
-      "conversation:",
-      "sessionId:",
-      "draft:"
-    ]) {
-      expect(sendTargetSource).toContain(field);
-    }
+    // The history-only coordinator no longer owns a send preflight: execution
+    // belongs to Harness, so the send-target and ordering assertions are gone.
+    expect(longConversationSource).not.toContain("function sendLongMessage(");
+    expect(longConversationSource).not.toContain("LongMessageSendTarget");
     expect(appSource).toContain(':editor-locked="longEditorLocked"');
     expect(appSource).not.toContain("const longEditorLocked = computed(");
     expect(longWorkspaceModuleSource).toContain(':locked="editorLocked"');

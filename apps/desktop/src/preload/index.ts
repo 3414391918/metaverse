@@ -107,9 +107,6 @@ async function getHealth(): Promise<SystemHealthPayload> {
     )
   );
 }
-function removedModelFeature(): Promise<never> {
-  return Promise.reject(new Error("应用内模型调用功能已移除。"));
-}
 const api: DeepWriteApi = {
   resourceManager: resourceManagerApi,
   assistant: assistantApi,
@@ -175,32 +172,6 @@ const api: DeepWriteApi = {
     duplicateProject
   },
   long,
-  session: {
-    prompt: removedModelFeature,
-    abort: removedModelFeature,
-    submitUserInput: removedModelFeature
-  },
-  models: {
-    list: removedModelFeature,
-    refreshFree: removedModelFeature,
-    setFreeModelEnabled: removedModelFeature,
-    refreshOfficial: removedModelFeature,
-    queryOfficialBalance: removedModelFeature,
-    saveOfficialToken: removedModelFeature,
-    clearOfficialToken: removedModelFeature,
-    saveSiteOfficialToken: removedModelFeature,
-    clearSiteOfficialToken: removedModelFeature,
-    refreshSiteOfficial: removedModelFeature,
-    querySiteOfficialQuota: removedModelFeature,
-    mergeSiteOfficialQuota: removedModelFeature,
-    setSiteOfficialModelEnabled: removedModelFeature,
-    setOfficialModelEnabled: removedModelFeature,
-    save: removedModelFeature,
-    test: removedModelFeature,
-    resolveCapacity: removedModelFeature,
-    listRemote: removedModelFeature
-  },
-  modelUsage: { query: removedModelFeature },
   chatAssistantProjectConfig,
   chatAssistantRoleplay,
   longAgents: {

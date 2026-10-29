@@ -26,14 +26,10 @@ describe("App general settings integration", () => {
     expect(coordinatorSource).toContain(
       "options.documentRoot.lang = resolvedLanguage"
     );
-    expect(coordinatorSource).toContain(
-      "function updateUseNetworkProxy(enabled: boolean)"
-    );
+    expect(coordinatorSource).not.toContain("updateUseNetworkProxy");
     expect(source).toContain('@update-language="updateAppLanguage"');
     expect(source).toContain('@update-show-in-menu-bar="updateShowInMenuBar"');
-    expect(source).toContain(
-      '@update-use-network-proxy="updateUseNetworkProxy"'
-    );
+    expect(source).not.toContain("update-use-network-proxy");
   });
 
   it("persists the context usage indicator visibility", () => {
@@ -55,23 +51,8 @@ describe("App general settings integration", () => {
     expect(stylesSource).toContain(".desktop-shell.manual-workspace-shell");
   });
 
-  it("persists and applies the default text view mode to every editor", () => {
-    expect(coordinatorSource).toContain(
-      "function updateDefaultTextViewMode(mode: TextViewMode)"
-    );
-    expect(source).toContain(
-      '@update-default-text-view-mode="updateDefaultTextViewMode"'
-    );
-    expect(source).toContain(
-      "defaultViewMode: generalSettings.value.defaultTextViewMode"
-    );
-    expect(source).toContain(
-      ':default-text-view-mode="generalSettings.defaultTextViewMode"'
-    );
-    expect(writingWorkspaceSource).toContain('| "defaultViewMode"');
-    expect(longWorkspaceSource).toContain(
-      ':default-view-mode="defaultTextViewMode"'
-    );
+  it("does not expose the retired default text view control", () => {
+    expect(source).not.toContain("@update-default-text-view-mode");
   });
 
   it("reveals text without expanding a collapsed right-side agent", () => {

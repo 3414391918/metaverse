@@ -8,7 +8,6 @@ import {
 import type {
   AgentRuntimeRef,
   AgentTeamRunMode,
-  AgentUserInputRequestedPayload,
   ModelConfig,
   ThinkingLevel
 } from "@deepwrite/contracts";
@@ -23,14 +22,10 @@ import { id } from "./shared";
 import type {
   AgentConversationPersistenceRecord,
   AgentConversationPersistenceSnapshot,
-  AgentTurnCheckpoint,
-  PendingAgentTextDelta,
-  SubagentTurnCheckpoint,
   UseAgentConversationOptions
 } from "./types";
 
 import type { AgentConversationOperations } from "./operations";
-import type { AgentUserInputController } from "./user-input";
 
 import {
   createTrackedMessages,
@@ -56,8 +51,6 @@ export interface AgentConversationState {
   selectedModelId: Ref<string>;
   runtime: Ref<AgentRuntimeRef | null>;
   conversationError: Ref<string | null>;
-  pendingUserInput: Ref<AgentUserInputRequestedPayload | null>;
-  submittingUserInput: Ref<boolean>;
   storedConversations: ShallowRef<AgentConversationPersistenceRecord[]>;
   remoteHistoryItems: ShallowRef<ConversationHistoryItem[]>;
   historyOperationPending: Ref<boolean>;
@@ -65,13 +58,9 @@ export interface AgentConversationState {
   currentCreatedAt: Ref<string>;
   currentUpdatedAt: Ref<string>;
   submitting: Ref<boolean>;
-  stopping: Ref<boolean>;
   activeRunId: Ref<string | null>;
-  handledEventIds: Set<string>;
   finishedRunIds: Set<string>;
   runMessageIds: Map<string, string>;
-  turnCheckpointByRun: Map<string, AgentTurnCheckpoint>;
-  subagentTurnCheckpointByRun: Map<string, SubagentTurnCheckpoint>;
   seenTurnIds: Set<string>;
   seenSubagentTurnIds: Set<string>;
   observedRunByAttempt: Map<number, string>;
@@ -84,8 +73,6 @@ export interface AgentConversationState {
   conversationClock: number;
   epoch: number;
   attemptSequence: number;
-  unconfirmedUserMessageId: string | undefined;
-  idleTimer: number | undefined;
   persistenceErrorReported: boolean;
   persistenceMutationRevision: number;
   persistenceBatchDepth: number;
@@ -94,22 +81,13 @@ export interface AgentConversationState {
   persistenceNotificationsEnabled: boolean;
   persistenceEmitHold: number;
   persistenceEmitPending: boolean;
-  pendingAgentTextDelta: PendingAgentTextDelta | undefined;
-  streamPresentationFrame: number | undefined;
-  streamPresentationFallbackTimer: number | undefined;
 }
 
 export type AgentConversationContext = AgentConversationState &
   AgentConversationOperations & {
-    userInput: AgentUserInputController;
     persistenceJournal: ConversationPersistenceJournal;
     stopPersistenceWatch(): void;
-    stopGeneration(): Promise<boolean>;
     history: Readonly<Ref<ConversationHistoryItem[]>>;
-    canSend: ComputedRef<boolean>;
-    canSendAttachments: ComputedRef<boolean>;
-    canRewriteHistory: ComputedRef<boolean>;
-    canStop: ComputedRef<boolean>;
     isBusy: ComputedRef<boolean>;
     hasPendingEditReview: ComputedRef<boolean>;
   };
@@ -153,8 +131,6 @@ export function createAgentConversationState(
     selectedModelId: ref(""),
     runtime: ref<AgentRuntimeRef | null>(null),
     conversationError: ref<string | null>(null),
-    pendingUserInput: ref<AgentUserInputRequestedPayload | null>(null),
-    submittingUserInput: ref(false),
     storedConversations: shallowRef<AgentConversationPersistenceRecord[]>(
       (storedEnvelope?.conversations ?? []).map((conversation) => ({
         ...conversation,
@@ -171,13 +147,9 @@ export function createAgentConversationState(
     ),
     currentUpdatedAt: ref(storedActive?.updatedAt ?? initialTimestamp),
     submitting: ref(false),
-    stopping: ref(false),
     activeRunId: ref<string | null>(null),
-    handledEventIds: new Set<string>(),
     finishedRunIds: new Set<string>(),
     runMessageIds: new Map<string, string>(),
-    turnCheckpointByRun: new Map<string, AgentTurnCheckpoint>(),
-    subagentTurnCheckpointByRun: new Map<string, SubagentTurnCheckpoint>(),
     seenTurnIds: new Set<string>(),
     seenSubagentTurnIds: new Set<string>(),
     observedRunByAttempt: new Map<number, string>(),
@@ -190,8 +162,6 @@ export function createAgentConversationState(
     conversationClock,
     epoch: 0,
     attemptSequence: 0,
-    unconfirmedUserMessageId: undefined,
-    idleTimer: undefined,
     persistenceErrorReported: false,
     persistenceMutationRevision: 0,
     persistenceBatchDepth: 0,
@@ -199,9 +169,6 @@ export function createAgentConversationState(
     applyingPersistenceSnapshot: false,
     persistenceNotificationsEnabled: true,
     persistenceEmitHold: 0,
-    persistenceEmitPending: false,
-    pendingAgentTextDelta: undefined,
-    streamPresentationFrame: undefined,
-    streamPresentationFallbackTimer: undefined
+    persistenceEmitPending: false
   };
 }

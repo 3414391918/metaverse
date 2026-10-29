@@ -2,33 +2,26 @@ import type { ConversationPersistenceChanges } from "./persistence-changes";
 import { type Ref } from "vue";
 import type {
   AgentRuntimeRef,
-  AgentUserInputAnswer,
-  AgentUserInputRequestedPayload,
   AgentTeamRunMode,
-  ChatAssistantRequestContext,
   DeepWriteApi,
-  LongWorkspaceRuntimeContext,
   ModelConfig,
   ModelSettings,
   SystemEventEnvelope,
-  ThinkingLevel,
-  UserPromptAttachment,
-  WorkspaceRuntimeContext
+  ThinkingLevel
 } from "@deepwrite/contracts";
 import type {
   AgentApprovalMode,
   AgentEditProposal,
-  AgentSubagentRun,
   ChatMessage,
-  ConversationHistoryItem,
-  ConversationMessageRewriteRequest
+  ConversationHistoryItem
 } from "../../types/conversation";
-import type { WorkspaceDocument } from "../../types/workspace";
+
 export interface ConversationStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem?(key: string): void;
 }
+
 export interface UseAgentConversationOptions {
   api: () => DeepWriteApi | undefined;
   autoApproveCrossStageOperations?: () => boolean;
@@ -61,6 +54,7 @@ export interface UseAgentConversationOptions {
   onPersistenceError?: () => void;
   onContextWarning?: (message: string) => void;
 }
+
 export interface AgentRunSettings {
   selectedModelId: string;
   thinkingLevel: ThinkingLevel;
@@ -69,6 +63,7 @@ export interface AgentRunSettings {
   agentTeamMode?: AgentTeamRunMode;
   webSearchEnabled?: boolean;
 }
+
 export interface AgentConversationPersistenceRecord {
   sessionId: string;
   messages: ChatMessage[];
@@ -78,31 +73,19 @@ export interface AgentConversationPersistenceRecord {
   updatedAt: string;
   temperature: number;
 }
+
 export interface AgentConversationPersistenceSnapshot {
   version: 1;
   activeSessionId: string;
   conversations: AgentConversationPersistenceRecord[];
 }
+
 export interface AgentConversationHistorySnapshot {
   activeSessionId: string;
   items: ConversationHistoryItem[];
   active?: AgentConversationPersistenceRecord;
 }
-export interface AgentTurnCheckpoint {
-  turnId: string;
-  messageId: string;
-  attempt: number;
-  maxAttempts: number;
-  attemptStartedAt: string;
-  message: ChatMessage | null;
-}
-export interface SubagentTurnCheckpoint {
-  turnId: string;
-  attempt: number;
-  maxAttempts: number;
-  attemptStartedAt: string;
-  run: AgentSubagentRun;
-}
+
 export type SubagentEventEnvelope = Extract<
   SystemEventEnvelope,
   {
@@ -116,21 +99,7 @@ export type SubagentActivityEventEnvelope = Extract<
     type: "subagent.activity";
   }
 >;
-export type AgentTextDeltaEventEnvelope = Extract<
-  SystemEventEnvelope,
-  {
-    type: "agent.message_delta" | "agent.thinking_delta";
-  }
->;
-export interface PendingAgentTextDelta {
-  type: AgentTextDeltaEventEnvelope["type"];
-  runId: string;
-  messageId: string;
-  runtime: AgentRuntimeRef;
-  eventId: string;
-  createdAt: string;
-  chunks: string[];
-}
+
 export interface AgentConversationController {
   messages: Ref<ChatMessage[]>;
   draft: Ref<string>;
@@ -144,15 +113,9 @@ export interface AgentConversationController {
   selectedModelId: Ref<string>;
   runtime: Ref<AgentRuntimeRef | null>;
   conversationError: Ref<string | null>;
-  pendingUserInput: Ref<AgentUserInputRequestedPayload | null>;
-  submittingUserInput: Ref<boolean>;
   history: Readonly<Ref<ConversationHistoryItem[]>>;
   isBusy: Readonly<Ref<boolean>>;
   hasPendingEditReview: Readonly<Ref<boolean>>;
-  canSend: Readonly<Ref<boolean>>;
-  canSendAttachments: Readonly<Ref<boolean>>;
-  canRewriteHistory: Readonly<Ref<boolean>>;
-  canStop: Readonly<Ref<boolean>>;
   acceptsRunEvent(sessionId: string, runId: string): boolean;
   approvalModeForRun(
     sessionId: string,
@@ -173,39 +136,6 @@ export interface AgentConversationController {
     proposalId: string,
     patch: Partial<AgentEditProposal>
   ): AgentEditProposal | undefined;
-  handleEvent(event: SystemEventEnvelope): void;
-  submitUserInput(answers: AgentUserInputAnswer[]): Promise<boolean>;
-  sendMessage(
-    activeDocument: WorkspaceDocument,
-    workspaceDocuments?: WorkspaceDocument[],
-    attachments?: WorkspaceContextAttachments,
-    promptAttachments?: UserPromptAttachment[]
-  ): Promise<void>;
-  resendMessage(
-    request: ConversationMessageRewriteRequest,
-    activeDocument: WorkspaceDocument,
-    workspaceDocuments?: WorkspaceDocument[],
-    attachments?: WorkspaceContextAttachments
-  ): Promise<boolean>;
-  sendAssistantMessage(context?: ChatAssistantRequestContext): Promise<void>;
-  sendLongMessage(
-    context: LongWorkspaceRuntimeContext,
-    attachments?: Pick<
-      WorkspaceRuntimeContext,
-      "attachedSkills" | "attachedMaterials"
-    >,
-    promptAttachments?: UserPromptAttachment[]
-  ): Promise<void>;
-  resendLongMessage(
-    request: ConversationMessageRewriteRequest,
-    context: LongWorkspaceRuntimeContext,
-    attachments?: Pick<
-      WorkspaceRuntimeContext,
-      "attachedSkills" | "attachedMaterials"
-    >
-  ): Promise<boolean>;
-  stopGeneration(): Promise<boolean>;
-  cancelPendingGeneration(): boolean;
   newConversation(): void;
   selectConversation(sessionId: string): boolean;
   openConversation(sessionId: string): Promise<boolean>;
@@ -224,7 +154,6 @@ export interface AgentConversationController {
   selectTemperature(temperature: number): void;
   selectApprovalMode(mode: AgentApprovalMode): void;
   selectAgentTeamMode(mode: AgentTeamRunMode): void;
-  useSuggestion(value: string): void;
   capturePersistenceSnapshot(): AgentConversationPersistenceSnapshot;
   capturePersistenceChanges(): ConversationPersistenceChanges;
   acknowledgePersistenceChanges(revision: number): void;
@@ -234,7 +163,3 @@ export interface AgentConversationController {
   releasePersistenceEmits(): void;
   dispose(options?: { clearPersistence?: boolean }): void;
 }
-export type WorkspaceContextAttachments = Pick<
-  WorkspaceRuntimeContext,
-  "attachedSkills" | "attachedMaterials" | "libraryWorkspace"
->;

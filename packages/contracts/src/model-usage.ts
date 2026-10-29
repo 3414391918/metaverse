@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { EnvelopeBaseSchema } from "./envelope";
 import { AgentUsageSchema } from "./agent-usage";
 import { ModelManagedBySchema } from "./models";
 
@@ -145,8 +144,3 @@ export const ModelUsageDashboardSchema = z.object({
   recentCalls: z.array(ModelUsageRecentCallSchema).max(50)
 });
 export type ModelUsageDashboard = z.infer<typeof ModelUsageDashboardSchema>;
-
-export const ModelUsageQueryCommandEnvelopeSchema = EnvelopeBaseSchema.extend({
-  type: z.literal("modelUsage.query"),
-  payload: ModelUsageQueryInputSchema
-});

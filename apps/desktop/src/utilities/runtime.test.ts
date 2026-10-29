@@ -21,7 +21,7 @@ async function flushMicrotasks(): Promise<void> {
   }
 }
 
-describe("utility runtime internal command bridge", () => {
+describe("utility runtime (Core only)", () => {
   let port: FakeParentPort;
   let originalParentPort: PropertyDescriptor | undefined;
   let signalListeners: Map<
@@ -138,7 +138,7 @@ describe("utility runtime internal command bridge", () => {
 
   it("retains SIGTERM shutdown for the supervisor kill fallback", async () => {
     const onShutdown = vi.fn();
-    bootUtility("tool", { onShutdown });
+    bootUtility("core", { onShutdown });
     deliverSignal("SIGTERM");
     await flushMicrotasks();
     expect(onShutdown).toHaveBeenCalledOnce();
@@ -152,197 +152,62 @@ describe("utility runtime internal command bridge", () => {
     expect(process.exit).toHaveBeenCalledWith(0);
   });
 
-  it("lets an agent handler await a correlated Core command result", async () => {
-    const outerCommand = createEnvelope(
-      "system.health",
-      {},
-      { id: "outer_runtime_command" }
-    );
-    const internalCommand = createEnvelope(
-      "system.health",
-      {},
-      { id: "internal_runtime_command" }
-    );
-
-    bootUtility("agent", {
-      commandHandler: async (command, _emitEvent, context) => {
-        const internalResult = await context!.requestInternalCommand(
-          "core",
-          internalCommand,
-          {
-            timeoutMs: 1_000
-          }
-        );
-        return {
-          status: "accepted",
-          requestId: command.id,
-          payload: internalResult
-        };
-      }
-    });
-
+  it("rejects unhandled commands instead of hanging the Core runtime", async () => {
+    bootUtility("core", {});
+    const command = createEnvelope("system.health", {}, { id: "unhandled" });
     port.dispatch({
       kind: "utility.command.request",
-      requestId: outerCommand.id,
-      command: outerCommand
+      requestId: command.id,
+      command
     });
     await flushMicrotasks();
+    expect(port.posted).toContainEqual(
+      expect.objectContaining({
+        kind: "utility.command.result",
+        requestId: command.id,
+        result: expect.objectContaining({
+          status: "rejected",
+          error: expect.objectContaining({
+            code: "utility.unsupported_command"
+          })
+        })
+      })
+    );
+  });
 
-    const internalRequest = port.posted.find(
-      (message) =>
-        (message as { kind?: string }).kind ===
-        "utility.internal.command.request"
-    ) as
-      | {
-          requestId: string;
-          parentRequestId: string;
-          target: "core";
-        }
-      | undefined;
-    expect(internalRequest).toMatchObject({
-      parentRequestId: outerCommand.id,
-      target: "core"
-    });
+  it("answers health requests from the supervisor", async () => {
+    bootUtility("core", { mode: "catalog-store" });
+    port.dispatch({ kind: "utility.health.request", requestId: "health_1" });
+    await flushMicrotasks();
+    expect(port.posted).toContainEqual(
+      expect.objectContaining({
+        kind: "utility.health",
+        requestId: "health_1",
+        payload: expect.objectContaining({
+          name: "core",
+          status: "ok",
+          details: expect.objectContaining({ mode: "catalog-store" })
+        })
+      })
+    );
+  });
 
+  it("no longer accepts internal command bridge traffic", async () => {
+    const commandHandler = vi.fn();
+    bootUtility("core", { commandHandler });
     port.dispatch({
-      kind: "utility.internal.command.result",
+      kind: "utility.internal.command.request",
       worker: "agent",
       target: "core",
-      requestId: internalRequest!.requestId,
-      parentRequestId: outerCommand.id,
-      result: {
-        status: "accepted",
-        requestId: internalCommand.id,
-        payload: { reachable: true }
-      }
+      requestId: "bridge_1",
+      parentRequestId: "parent_1",
+      timeoutMs: 1_000,
+      command: createEnvelope("system.health", {}, { id: "internal_1" })
     });
     await flushMicrotasks();
-
-    expect(port.posted).toContainEqual(
-      expect.objectContaining({
-        kind: "utility.command.result",
-        requestId: outerCommand.id,
-        result: {
-          status: "accepted",
-          requestId: outerCommand.id,
-          payload: {
-            status: "accepted",
-            requestId: internalCommand.id,
-            payload: { reachable: true }
-          }
-        }
-      })
-    );
-  });
-
-  it("times out an unanswered internal command without leaking the outer handler", async () => {
-    const outerCommand = createEnvelope(
-      "system.health",
-      {},
-      { id: "outer_timeout_command" }
-    );
-    const internalCommand = createEnvelope(
-      "system.health",
-      {},
-      { id: "internal_timeout_command" }
-    );
-
-    bootUtility("agent", {
-      commandHandler: async (command, _emitEvent, context) => ({
-        status: "accepted",
-        requestId: command.id,
-        payload: await context!.requestInternalCommand(
-          "tool",
-          internalCommand,
-          { timeoutMs: 10 }
-        )
-      })
-    });
-
-    port.dispatch({
-      kind: "utility.command.request",
-      requestId: outerCommand.id,
-      command: outerCommand
-    });
-    await vi.advanceTimersByTimeAsync(260);
-    await flushMicrotasks();
-
-    expect(port.posted).toContainEqual(
-      expect.objectContaining({
-        kind: "utility.command.result",
-        requestId: outerCommand.id,
-        result: expect.objectContaining({
-          status: "accepted",
-          payload: expect.objectContaining({
-            status: "rejected",
-            requestId: internalCommand.id,
-            error: expect.objectContaining({
-              code: "utility.internal_command_timeout"
-            })
-          })
-        })
-      })
-    );
-  });
-
-  it("settles pending internal commands before acknowledging shutdown", async () => {
-    const outerCommand = createEnvelope(
-      "system.health",
-      {},
-      { id: "outer_shutdown_command" }
-    );
-    const internalCommand = createEnvelope(
-      "system.health",
-      {},
-      { id: "internal_shutdown_command" }
-    );
-
-    bootUtility("agent", {
-      commandHandler: async (command, _emitEvent, context) => ({
-        status: "accepted",
-        requestId: command.id,
-        payload: await context!.requestInternalCommand(
-          "core",
-          internalCommand,
-          {
-            timeoutMs: 30_000
-          }
-        )
-      })
-    });
-
-    port.dispatch({
-      kind: "utility.command.request",
-      requestId: outerCommand.id,
-      command: outerCommand
-    });
-    await flushMicrotasks();
-    port.dispatch({
-      kind: "utility.shutdown",
-      requestId: "shutdown_runtime"
-    });
-    await flushMicrotasks();
-
-    expect(port.posted).toContainEqual(
-      expect.objectContaining({
-        kind: "utility.command.result",
-        requestId: outerCommand.id,
-        result: expect.objectContaining({
-          payload: expect.objectContaining({
-            status: "rejected",
-            requestId: internalCommand.id,
-            error: expect.objectContaining({
-              code: "utility.internal_command_cancelled"
-            })
-          })
-        })
-      })
-    );
-    expect(port.posted).toContainEqual(
-      expect.objectContaining({
-        kind: "utility.shutdown_ack",
-        requestId: "shutdown_runtime"
-      })
+    expect(commandHandler).not.toHaveBeenCalled();
+    expect(port.posted).not.toContainEqual(
+      expect.objectContaining({ kind: "utility.internal.command.result" })
     );
   });
 });

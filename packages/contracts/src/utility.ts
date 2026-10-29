@@ -23,25 +23,10 @@ export const UtilityCommandRequestMessageSchema = z.object({
   command: CommandEnvelopeSchema
 });
 
-export const UtilityInternalCommandTargetSchema = z.enum(["core", "tool"]);
-export type UtilityInternalCommandTarget = z.infer<
-  typeof UtilityInternalCommandTargetSchema
->;
-
-export const UtilityInternalCommandResultMessageSchema = z.object({
-  kind: z.literal("utility.internal.command.result"),
-  worker: z.literal("agent"),
-  target: UtilityInternalCommandTargetSchema,
-  requestId: z.string().min(1),
-  parentRequestId: z.string().min(1),
-  result: CommandResultSchema
-});
-
 export const UtilityInboundMessageSchema = z.discriminatedUnion("kind", [
   UtilityHealthRequestMessageSchema,
   UtilityShutdownMessageSchema,
-  UtilityCommandRequestMessageSchema,
-  UtilityInternalCommandResultMessageSchema
+  UtilityCommandRequestMessageSchema
 ]);
 export type UtilityInboundMessage = z.infer<typeof UtilityInboundMessageSchema>;
 
@@ -87,27 +72,13 @@ export const UtilityCommandEventMessageSchema = z.object({
   event: SystemEventEnvelopeSchema
 });
 
-export const UtilityInternalCommandRequestMessageSchema = z.object({
-  kind: z.literal("utility.internal.command.request"),
-  worker: z.literal("agent"),
-  target: UtilityInternalCommandTargetSchema,
-  requestId: z.string().min(1),
-  parentRequestId: z.string().min(1),
-  timeoutMs: z.number().int().min(1).max(120_000),
-  command: CommandEnvelopeSchema
-});
-export type UtilityInternalCommandRequestMessage = z.infer<
-  typeof UtilityInternalCommandRequestMessageSchema
->;
-
 export const UtilityOutboundMessageSchema = z.discriminatedUnion("kind", [
   UtilityReadyMessageSchema,
   UtilityHeartbeatMessageSchema,
   UtilityHealthMessageSchema,
   UtilityShutdownAckMessageSchema,
   UtilityCommandResultMessageSchema,
-  UtilityCommandEventMessageSchema,
-  UtilityInternalCommandRequestMessageSchema
+  UtilityCommandEventMessageSchema
 ]);
 export type UtilityOutboundMessage = z.infer<
   typeof UtilityOutboundMessageSchema

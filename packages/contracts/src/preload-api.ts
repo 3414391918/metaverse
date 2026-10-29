@@ -81,17 +81,7 @@ import type {
 import type { LongPreloadApi } from "./long-preload-api";
 import type { ResourceManagerApi } from "./resource-manager";
 import type { LongAgentId } from "./long-workspace";
-import type { ModelPreloadApi } from "./model-preload-api";
-import type { ModelUsageDashboard, ModelUsageQueryInput } from "./model-usage";
 import type { ConversationPersistenceApi } from "./renderer-state";
-import type {
-  SessionAbortAcceptedPayload,
-  SessionAbortCommandPayload,
-  SessionPromptAcceptedPayload,
-  SessionPromptCommandPayload,
-  SessionUserInputResponseAcceptedPayload,
-  SessionUserInputResponsePayload
-} from "./session";
 import type { SystemEventEnvelope, SystemHealthPayload } from "./system";
 import type { TextContextMenuPreloadApi } from "./text-context-menu";
 import type { UpdateState } from "./update";
@@ -186,21 +176,6 @@ export interface DeepWriteApi
     ): Promise<DuplicateCatalogProjectResult>;
   };
   long: LongPreloadApi;
-  session: {
-    prompt(
-      payload: SessionPromptCommandPayload
-    ): Promise<SessionPromptAcceptedPayload>;
-    abort(
-      payload: SessionAbortCommandPayload
-    ): Promise<SessionAbortAcceptedPayload>;
-    submitUserInput(
-      payload: SessionUserInputResponsePayload
-    ): Promise<SessionUserInputResponseAcceptedPayload>;
-  };
-  models: ModelPreloadApi;
-  modelUsage: {
-    query(input?: ModelUsageQueryInput): Promise<ModelUsageDashboard>;
-  };
   longAgents: {
     list(): Promise<LongAgentSettings>;
     save(settings: LongAgentSettingsInput): Promise<LongAgentSettings>;

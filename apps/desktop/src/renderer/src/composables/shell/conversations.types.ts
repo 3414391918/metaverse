@@ -51,12 +51,6 @@ export interface ConversationsRuntime {
   selectLongThinking: ReturnType<
     typeof useLongConversationCoordinator
   >["selectThinking"];
-  sendLongMessage: ReturnType<
-    typeof useLongConversationCoordinator
-  >["sendLongMessage"];
-  stopLongGeneration: ReturnType<
-    typeof useLongConversationCoordinator
-  >["stopGeneration"];
   updateLongComposerDraft: ReturnType<
     typeof useLongConversationCoordinator
   >["updateDraft"];
@@ -93,12 +87,6 @@ export interface ConversationsRuntime {
   selectThinking: ReturnType<
     typeof useLibraryConversationCoordinator
   >["selectThinking"];
-  sendMessage: ReturnType<
-    typeof useLibraryConversationCoordinator
-  >["sendMessage"];
-  stopGeneration: ReturnType<
-    typeof useLibraryConversationCoordinator
-  >["stopGeneration"];
   updateComposerDraft: ReturnType<
     typeof useLibraryConversationCoordinator
   >["updateDraft"];

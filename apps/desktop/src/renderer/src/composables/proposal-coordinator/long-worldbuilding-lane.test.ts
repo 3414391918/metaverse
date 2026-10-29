@@ -6,7 +6,6 @@ import {
   worldbuildingFileEvent
 } from "../useLongWorkspaceProposals.test-support";
 import {
-  createDeferredApi,
   createEditProposal,
   useAgentConversation
 } from "../useAgentConversation.test-support";
@@ -32,8 +31,7 @@ describe("worldbuilding save acknowledgement", () => {
         }
       }
     });
-    const api = createDeferredApi();
-    const conversation = useAgentConversation({ api: () => api.api });
+    const conversation = useAgentConversation({ api: () => undefined });
     conversation.messages.value = [
       {
         id: "assistant-world",
@@ -94,7 +92,6 @@ describe("worldbuilding save acknowledgement", () => {
       expect(
         conversation.getEditProposal(event.payload.runId, proposal.id)?.status
       ).toBe("accepted");
-      expect(conversation.canSend.value).toBe(true);
       failRefresh(new Error("模拟刷新失败"));
       await Promise.resolve();
       await Promise.resolve();

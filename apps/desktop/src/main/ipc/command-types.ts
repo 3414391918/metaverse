@@ -1,6 +1,5 @@
 import type { BrowserWindow } from "electron";
 import type {
-  AgentRuntimeRef,
   AppearanceSettings,
   GeneralSettings,
   SystemEventEnvelope
@@ -12,10 +11,6 @@ import type { ContinuationImportPreviewRegistry } from "../continuation-import-p
 import type { readExternalLibraryEntries } from "../external-library-import";
 import type { GeneralSettingsStore } from "../general-settings-store";
 import type { FishAudioService } from "../fish-audio-service";
-import type {
-  authorizeMainInternalCommand,
-  MainInternalCommandActiveRun
-} from "../internal-command-authorizer";
 import type { importLegacyLibraryArchives } from "../legacy-library-import-batch";
 import type { LegacySyncPreviewRegistry } from "../legacy-sync-preview-registry";
 import type { LibraryAgentConfigStore } from "../library-agent-config-store";
@@ -25,18 +20,12 @@ import type { ToolLibraryStore } from "../tool-library-store";
 import type { exportLongManuscript } from "../long-manuscript-export";
 import type { createRendererStateFlushCoordinator } from "../renderer-state-flush";
 import type { UtilitySupervisor } from "../supervisor";
-import type { UsageRunContext } from "../usage-observation";
 import type { WorkspaceDirectoryStore } from "../workspace-directory-store";
 import type {
   chooseWorkspaceDirectory,
   workspaceGroupParent,
   workspaceResourceParent
 } from "./workspace-paths";
-export interface ActiveRun extends MainInternalCommandActiveRun {
-  correlationId: string;
-  runtime: AgentRuntimeRef;
-  usageContext?: UsageRunContext;
-}
 export interface IpcCommandContext {
   getMainWindow: () => BrowserWindow;
   supervisor: UtilitySupervisor;
@@ -44,10 +33,6 @@ export interface IpcCommandContext {
   dialog: Pick<Electron.Dialog, "showOpenDialog" | "showSaveDialog">;
   continuationImportPreviews: ContinuationImportPreviewRegistry;
   legacySyncPreviews: LegacySyncPreviewRegistry;
-  authorizeMainInternalCommand: typeof authorizeMainInternalCommand;
-  activeRuns: Map<string, ActiveRun>;
-  pendingUsageContexts: Map<string, UsageRunContext>;
-  terminalRuns: Set<string>;
   requireChatAssistantProjectConfigStore: () => ChatAssistantProjectConfigStore;
   requireAgentTeamConfigStore: () => AgentTeamConfigStore;
   requireLibraryAgentConfigStore: () => LibraryAgentConfigStore;
