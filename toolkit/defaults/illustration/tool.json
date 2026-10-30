@@ -2,9 +2,7 @@
   "version": 1,
   "id": "illustration",
   "name": "插图设计",
-  "description": "按章节或剧情片段设计连续插图镜头，整理纯场景与角色资产参考图，交付逐镜提示词。",
+  "description": "按章节或剧情片段设计连续插图镜头，逐张展示全部参考图预览、绝对路径及独立可用的画面提示词。",
   "entryFile": "SKILL.md",
-  "relatedToolIds": [
-    "creation"
-  ]
+  "relatedToolIds": ["creation"]
 }

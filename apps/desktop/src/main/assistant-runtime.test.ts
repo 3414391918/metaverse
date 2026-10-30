@@ -185,7 +185,7 @@ process.on("SIGTERM", () => process.exit(0));`
     }
   );
   it("disables duplicate shell and telemetry surfaces while keeping a profile overlay", () => {
-    const patch = assistantOverlay("/app/plugin");
+    const patch = assistantOverlay("/app/plugin", "/work/space");
     expect(patch).toContainEqual({ id: "ui-layout", disabled: true });
     expect(patch).toContainEqual({
       id: "session-log-deepseek",
@@ -199,6 +199,21 @@ process.on("SIGTERM", () => process.exit(0));`
     expect(patch).toContainEqual({ id: "deepseek-account", disabled: true });
     expect(patch.at(-1)).toMatchObject({
       insert: [{ id: "metaverse-integration" }]
+    });
+  });
+  it("keeps the workspace fixed to the application setting", () => {
+    const patch = assistantOverlay("/app/plugin", "/work/space");
+    expect(patch).toContainEqual({ id: "directory-picker", disabled: true });
+  });
+  it("scans local skills only under the workspace tools directory", () => {
+    const patch = assistantOverlay("/app/plugin", "/work/space");
+    expect(patch).toContainEqual({
+      id: "skill-filesystem",
+      name: "@deepseek-ai/dsh-skill-filesystem",
+      config: {
+        includeDefaultRoots: false,
+        customSkillDirs: [join("/work/space", "tools")]
+      }
     });
   });
 });

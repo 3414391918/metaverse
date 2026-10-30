@@ -1,4 +1,5 @@
 import { createPluginPage } from "./plugin-page.js";
+import { sessionListStyle } from "./session-list-style.js";
 import {
   beginToolCommand,
   createToolClaim,
@@ -294,8 +295,16 @@ window.__ModuleLoader__.load({
         .mv-import-status{font-size:12px;color:#db6565;white-space:pre-wrap;padding:0 4px}.mv-sessions>button:disabled{opacity:.55;cursor:default}
         .mv-center{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;position:relative}.mv-main{flex:1;min-height:0;overflow:hidden}.mv-top{display:flex;justify-content:flex-end;gap:8px;padding:10px 16px;flex:none}.mv-right{width:36%;min-width:300px;position:relative}.mv-right:empty{display:none}
         .mv-settings{height:100%;overflow:auto;padding:8px 20px 28px}.mv-settings-inner{max-width:1100px;margin:auto}.mv-backdrop{position:fixed;inset:0;background:#0006;z-index:2000;display:grid;place-items:center}.mv-dialog{background:var(--dsw-alias-bg-base,#222);border:1px solid #8884;border-radius:14px;padding:22px;width:min(580px,90vw);max-height:85vh;overflow:auto;box-shadow:0 16px 60px #0005}.mv-dialog header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.mv-dialog label{display:flex;justify-content:space-between;align-items:center;padding:14px 0}.mv-error{color:#db6565;padding:12px;white-space:pre-wrap}.mv-sessions-list>div{min-height:0;flex:1}
+        /* Workspace follows the application setting; the browser's own
+           section header, grouped workspace folder row, and the hero's
+           workspace chip all stay unmounted. */
+        .mv-sessions-list [class*="sectionHeader"]{display:none!important}
+        .mv-sessions-list [class*="groupSection"]>[class*="workspaceRow"],
+        .mv-sessions-list [class*="workspaceHeader"],
+        .mv-sessions-list [class*="workspaceGroupHeader"]{display:none!important}
         [class$="_headline"]:has([class$="_fishHitbox"]){display:none!important}
       `;
+        style.textContent += sessionListStyle;
         document.head.append(style);
         ctx.effect(() => () => style.remove());
         const PluginPage = createPluginPage(React, ctx, {
@@ -614,6 +623,14 @@ window.__ModuleLoader__.load({
             () => null
           )
         );
+        // The workspace follows the application setting, so neither the hero
+        // workspace chip nor its switcher trigger renders.
+        ctx.slots.inject("conversation.hero.workspace", () =>
+          ctx.slots.register(
+            { name: "conversation.hero.workspace", priority: -100 },
+            () => null
+          )
+        );
         // Keep the model-facing tool instructions, but render the sent user
         // message with the same compact label used in the composer.
         ctx.inject(["uiConversation"], (child) => {
@@ -624,19 +641,32 @@ window.__ModuleLoader__.load({
               if (from !== 0) return undefined;
               const request = parseToolRequest(text);
               return request
-                ? { id: "metaverse-tool", start: 0, end: text.length, data: request }
+                ? {
+                    id: "metaverse-tool",
+                    start: 0,
+                    end: text.length,
+                    data: request
+                  }
                 : undefined;
             }
           });
         });
         ctx.slots.inject("conversation.user.text.node", () =>
           ctx.slots.register(
-            { name: "conversation.user.text.node", key: "metaverse-tool", priority: 100 },
+            {
+              name: "conversation.user.text.node",
+              key: "metaverse-tool",
+              priority: 100
+            },
             ({ node }) =>
               h(
                 React.Fragment,
                 null,
-                h("span", { style: { color: "#6fa8ff" } }, `/${node.data.name}`),
+                h(
+                  "span",
+                  { style: { color: "#6fa8ff" } },
+                  `/${node.data.name}`
+                ),
                 node.data.task ? ` ${node.data.task}` : ""
               )
           )
@@ -674,89 +704,112 @@ window.__ModuleLoader__.load({
             }
           )
         );
-        ctx.inject(["commandUi", "sessions", "conversation", "remote.session"], (child) =>
-          child.commandUi.register({
-            name: "tool",
-            label: () => t("工具"),
-            description: () => t("选择工具管理中的工具"),
-            icon: () =>
-              h(
-                "svg",
-                {
-                  viewBox: "0 0 24 24",
-                  width: 20,
-                  height: 20,
-                  fill: "none",
-                  stroke: "currentColor",
-                  strokeWidth: 1.8,
-                  strokeLinecap: "round",
-                  strokeLinejoin: "round",
-                  "aria-hidden": true
-                },
-                h("path", { d: "M4 7h16M4 12h16M4 17h16" }),
-                h("circle", { cx: 8, cy: 7, r: 2, fill: "currentColor" }),
-                h("circle", { cx: 16, cy: 12, r: 2, fill: "currentColor" }),
-                h("circle", { cx: 10, cy: 17, r: 2, fill: "currentColor" })
-              ),
-            available: (session) => {
-              const binding = child.sessions.binding(session.sessionId);
-              return (
-                binding !== undefined &&
-                child.conversation.input.for(binding.ctx).state.getSnapshot()
-                  .claim?.name !== "tool"
-              );
-            },
-            ui: {
-              kind: "popupSelect",
-              searchLabels: () => ({
-                placeholder: t("搜索工具…"),
-                empty: t("没有可用的工具"),
-                noResults: t("没有匹配的工具")
-              }),
-              async options() {
-                return (await listTools()).map((tool) => ({
-                  id: tool.id,
-                  label: tool.name,
-                  detail: tool.description
-                }));
-              },
-              async onSelect(option, session) {
-                const tool = (await listTools()).find(
-                  (item) => item.id === option.id
-                );
-                if (!tool) throw new Error("所选工具已不存在，请重新选择。");
+        ctx.inject(
+          ["commandUi", "sessions", "conversation", "remote.session"],
+          (child) =>
+            child.commandUi.register({
+              name: "tool",
+              label: () => t("工具"),
+              description: () => t("选择工具管理中的工具"),
+              icon: () =>
+                h(
+                  "svg",
+                  {
+                    viewBox: "0 0 24 24",
+                    width: 20,
+                    height: 20,
+                    fill: "none",
+                    stroke: "currentColor",
+                    strokeWidth: 1.8,
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                    "aria-hidden": true
+                  },
+                  h("path", { d: "M4 7h16M4 12h16M4 17h16" }),
+                  h("circle", { cx: 8, cy: 7, r: 2, fill: "currentColor" }),
+                  h("circle", { cx: 16, cy: 12, r: 2, fill: "currentColor" }),
+                  h("circle", { cx: 10, cy: 17, r: 2, fill: "currentColor" })
+                ),
+              available: (session) => {
                 const binding = child.sessions.binding(session.sessionId);
-                if (!binding) throw new Error("当前会话已关闭。");
-                const input = child.conversation.input.for(binding.ctx);
-                const claim = createToolClaim(
-                  tool,
-                  session.sessionId,
-                  child.sessions,
-                  child.conversation,
-                  child.remote.session
+                return (
+                  binding !== undefined &&
+                  child.conversation.input.for(binding.ctx).state.getSnapshot()
+                    .claim?.name !== "tool"
                 );
-                if (!beginToolCommand(input, claim))
-                  throw new Error("无法在当前输入框中选择工具，请重试。");
+              },
+              ui: {
+                kind: "popupSelect",
+                searchLabels: () => ({
+                  placeholder: t("搜索工具…"),
+                  empty: t("没有可用的工具"),
+                  noResults: t("没有匹配的工具")
+                }),
+                async options() {
+                  return (await listTools()).map((tool) => ({
+                    id: tool.id,
+                    label: tool.name,
+                    detail: tool.description
+                  }));
+                },
+                async onSelect(option, session) {
+                  const tool = (await listTools()).find(
+                    (item) => item.id === option.id
+                  );
+                  if (!tool) throw new Error("所选工具已不存在，请重新选择。");
+                  const binding = child.sessions.binding(session.sessionId);
+                  if (!binding) throw new Error("当前会话已关闭。");
+                  const input = child.conversation.input.for(binding.ctx);
+                  const claim = createToolClaim(
+                    tool,
+                    session.sessionId,
+                    child.sessions,
+                    child.conversation,
+                    child.remote.session
+                  );
+                  if (!beginToolCommand(input, claim))
+                    throw new Error("无法在当前输入框中选择工具，请重试。");
+                }
               }
-            }
-          })
+            })
         );
-        ctx.inject(["inputTriggers", "sessions", "conversation", "remote.session"], (child) =>
-          child.inputTriggers.registerSource(
-            createToolRestoreSource(
-              listTools,
-              child.sessions,
-              child.conversation,
-              child.remote.session
+        ctx.inject(
+          ["inputTriggers", "sessions", "conversation", "remote.session"],
+          (child) =>
+            child.inputTriggers.registerSource(
+              createToolRestoreSource(
+                listTools,
+                child.sessions,
+                child.conversation,
+                child.remote.session
+              )
             )
-          )
         );
         ctx.inject(
           ["uiWorkspace", "workspaces", "sessions", "remote.workspace"],
           (child) => {
             void (async () => {
               if (workspacePath) {
-                await child.workspaces.create({ path: workspacePath });
+                const workspace = await child.workspaces.create({
+                  path: workspacePath
+                });
+                // The host restores its selection before this workspace
+                // exists, so the composer would stay in its no-workspace
+                // state. Open the workspace once nothing else is selected.
+                const openSession = () => {
+                  const sessions = child.sessions.list.getSnapshot();
+                  const list = child.workspaces.list.getSnapshot();
+                  if (sessions.phase !== "ready" || list.phase !== "ready")
+                    return false;
+                  child.uiWorkspace.startSession(workspace?.workspaceId);
+                  return true;
+                };
+                if (!openSession()) {
+                  const stop = child.sessions.list.subscribe(() => {
+                    if (openSession()) stop();
+                  });
+                  ctx.effect(() => stop);
+                }
               }
               notify({ type: "ready" });
             })().catch(report);

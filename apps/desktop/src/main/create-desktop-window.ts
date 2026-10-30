@@ -1,6 +1,6 @@
 import { isAssistantGuestUrl } from "./assistant-service";
 import { installWindowFrame, usesCustomWindowFrame } from "./window-frame";
-import { BrowserWindow, shell } from "electron";
+import { BrowserWindow, Menu, shell } from "electron";
 import { join } from "node:path";
 import type { AppearanceSettings } from "@deepwrite/contracts";
 import {
@@ -118,6 +118,24 @@ export function createDesktopWindow(
   );
 
   window.webContents.on("did-attach-webview", (_event, guestContents) => {
+    guestContents.on("context-menu", (_event, params) => {
+      if (
+        !isAssistantGuestUrl(guestContents.getURL()) ||
+        params.mediaType !== "image" ||
+        guestContents.isDestroyed() ||
+        window.isDestroyed()
+      )
+        return;
+      Menu.buildFromTemplate([
+        {
+          label: "复制图片",
+          click: () => {
+            if (!guestContents.isDestroyed())
+              guestContents.copyImageAt(params.x, params.y);
+          }
+        }
+      ]).popup({ window });
+    });
     guestContents.on("dom-ready", () => {
       if (!isAssistantGuestUrl(guestContents.getURL())) return;
       assistantGuests.add(guestContents.id);

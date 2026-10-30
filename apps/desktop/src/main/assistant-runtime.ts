@@ -33,7 +33,7 @@ export function assistantReadyUrl(line: string): string | undefined {
   );
   return match?.[1];
 }
-export function assistantOverlay(pluginPath: string) {
+export function assistantOverlay(pluginPath: string, workspace: string) {
   return [
     ...[
       "ui-layout",
@@ -48,8 +48,20 @@ export function assistantOverlay(pluginPath: string) {
       "session-log-deepseek",
       "llm-deepseek",
       "llm-deepseek-account",
-      "deepseek-account"
+      "deepseek-account",
+      // The workspace follows the application setting, so the directory
+      // chooser that would add a second workspace stays unmounted.
+      "directory-picker"
     ].map((id) => ({ id, disabled: true })),
+    // Local skills come from the workspace's own tools directory only.
+    {
+      id: "skill-filesystem",
+      name: "@deepseek-ai/dsh-skill-filesystem",
+      config: {
+        includeDefaultRoots: false,
+        customSkillDirs: [join(workspace, "tools")]
+      }
+    },
     {
       insert: [
         {
@@ -141,12 +153,12 @@ export class AssistantRuntime {
     const overlay = join(home, "metaverse.patch.json");
     await writeGenerated(
       overlay,
-      JSON.stringify(assistantOverlay(this.options.plugin), null, 2)
+      JSON.stringify(assistantOverlay(this.options.plugin, workspace), null, 2)
     );
     const guide = join(home, "platform.md");
     await writeGenerated(
       guide,
-      `# 元宇宙创作平台\n\n当前应用工作目录：${workspace}\n\n平台工具位于 ${join(workspace, "tools")}，其中每个工具的 SKILL.md、说明和脚本都可直接读取。先读取所需工具的说明，再通过它提供的接口操作书籍、人物、插图和声音。项目索引位于 ${join(workspace, ".metaverse")}；写入正文与媒体时使用创作工具的接口，遵守文件版本和合并规则。不得把对话说明写入小说正文。\n`
+      `# 元宇宙创作平台\n\n当前应用工作目录：${workspace}\n\n平台工具已注册为本地 skill，可在 skill 目录中按名称查看并加载；工具文件位于 ${join(workspace, "tools")}，其 SKILL.md、说明和脚本也可直接读取。执行任务前先加载对应工具，再通过它提供的接口操作书籍、人物、插图和声音。项目索引位于 ${join(workspace, ".metaverse")}；写入正文与媒体时使用创作工具的接口，遵守文件版本和合并规则。不得把对话说明写入小说正文。\n`
     );
     if (generation !== this.generation) throw new Error("智能体启动已取消。");
     const bin = join(home, "runtime-bin");
