@@ -117,9 +117,6 @@ onBeforeUnmount(() => {
           <h2>{{ tool.name }}</h2>
           <p>{{ tool.description }}</p>
         </div>
-        <button type="button" :disabled="busy" @click="model.copyPath(true)">
-          复制入口路径
-        </button>
         <button
           type="button"
           class="is-danger"
@@ -192,28 +189,44 @@ onBeforeUnmount(() => {
               编辑
             </button>
           </div>
-          <p class="tool-hint">当前工具使用</p>
-          <button
-            v-for="related in outgoing"
-            :key="related.id"
-            type="button"
-            :disabled="busy"
-            @click="model.open(related.id)"
-          >
-            {{ related.name }} →
-          </button>
-          <p v-if="!outgoing.length" class="tool-hint">暂无关联</p>
-          <p class="tool-hint incoming-title">使用当前工具</p>
-          <button
-            v-for="related in incoming"
-            :key="related.id"
-            type="button"
-            :disabled="busy"
-            @click="model.open(related.id)"
-          >
-            {{ related.name }} →
-          </button>
-          <p v-if="!incoming.length" class="tool-hint">暂无引用</p>
+          <section class="tool-relation-group">
+            <header>
+              <span class="tool-relation-label">依赖</span>
+              <h3>当前工具调用</h3>
+            </header>
+            <div v-if="outgoing.length" class="tool-relation-list">
+              <button
+                v-for="related in outgoing"
+                :key="related.id"
+                type="button"
+                :disabled="busy"
+                @click="model.open(related.id)"
+              >
+                <span>{{ related.name }}</span
+                ><span aria-hidden="true">›</span>
+              </button>
+            </div>
+            <p v-else class="tool-relation-empty">暂无依赖工具</p>
+          </section>
+          <section class="tool-relation-group">
+            <header>
+              <span class="tool-relation-label is-referenced">被引用</span>
+              <h3>调用当前工具</h3>
+            </header>
+            <div v-if="incoming.length" class="tool-relation-list">
+              <button
+                v-for="related in incoming"
+                :key="related.id"
+                type="button"
+                :disabled="busy"
+                @click="model.open(related.id)"
+              >
+                <span>{{ related.name }}</span
+                ><span aria-hidden="true">›</span>
+              </button>
+            </div>
+            <p v-else class="tool-relation-empty">暂无工具引用</p>
+          </section>
         </aside>
       </div>
     </template>

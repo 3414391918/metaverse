@@ -1,8 +1,8 @@
 {
   "version": 1,
   "id": "video",
-  "name": "视频工具",
-  "description": "理解小说上下文及两张首尾帧图片，推断中间剧情并编写完整的视频生成脚本。",
+  "name": "影视设计",
+  "description": "按小说的卷与章节设计视频生成脚本；以正文纯场景图划分场景，逐段交付脚本形式、时长、参考图预览与完整提示词。",
   "entryFile": "SKILL.md",
   "relatedToolIds": ["creation", "illustration"]
 }

@@ -109,7 +109,7 @@ textarea:focus-visible {
 }
 .tool-workbench {
   display: grid;
-  grid-template-columns: 190px minmax(260px, 1fr) 180px;
+  grid-template-columns: 190px minmax(260px, 1fr) 240px;
   flex: 1;
   min-height: 450px;
   border: 1px solid var(--theme-line);
@@ -136,8 +136,7 @@ textarea:focus-visible {
 .tool-panel-heading button {
   padding: 4px 8px;
 }
-.tool-files > button,
-.tool-relations > button {
+.tool-files > button {
   display: block;
   width: 100%;
   text-align: left;
@@ -150,8 +149,75 @@ textarea:focus-visible {
   background: var(--surface-selected);
   color: var(--accent);
 }
-.incoming-title {
-  margin-top: 30px;
+.tool-relation-group + .tool-relation-group {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--theme-line);
+}
+.tool-relation-group header {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+.tool-relation-group h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+.tool-relation-label {
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--accent);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.tool-relation-label.is-referenced {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+.tool-relation-list {
+  display: grid;
+  gap: 7px;
+}
+.tool-relation-list button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+  padding: 9px 10px;
+  border-color: transparent;
+  text-align: left;
+}
+.tool-relation-list button span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.tool-relation-list button span:last-child {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.tool-relation-empty {
+  margin: 0;
+  padding: 12px 10px;
+  border: 1px dashed var(--theme-line);
+  border-radius: 8px;
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 .tool-code-panel {
   display: flex;

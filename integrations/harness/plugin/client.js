@@ -1,5 +1,6 @@
 import { createPluginPage } from "./plugin-page.js";
 import { sessionListStyle } from "./session-list-style.js";
+import { sessionPanelPatch } from "./navigation.js";
 import {
   beginToolCommand,
   createToolClaim,
@@ -102,15 +103,9 @@ window.__ModuleLoader__.load({
           panelInfo,
           selectPanel(id) {
             navigation.abort();
-            const previous = nav.getSnapshot().screen;
-            update({
-              activePanelId: id,
-              screen: id === "plugins" ? "plugins" : "assistant"
-            });
+            update(sessionPanelPatch(nav.getSnapshot().screen, id));
             if (panelInfo.getSnapshot().activePanelId !== id)
               panelInfo.set({ activePanelId: id });
-            if (previous !== "assistant" && id === null)
-              notify({ type: "navigate", screen: "assistant" });
           },
           beginNavigation() {
             navigation.abort();
