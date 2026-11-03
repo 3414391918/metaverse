@@ -87,6 +87,8 @@ function normalizeDisk(raw: unknown): DiskChatAssistantProjectConfig {
   };
 }
 
+import { configurationDirectory } from "../storage-paths";
+
 export class ChatAssistantProjectConfigStore {
   readonly roleplay: ChatAssistantRoleplayStore;
   private readonly path: string;
@@ -94,7 +96,7 @@ export class ChatAssistantProjectConfigStore {
 
   constructor(userDataPath: string) {
     this.roleplay = new ChatAssistantRoleplayStore(userDataPath);
-    this.path = join(userDataPath, "config", "chat-assistant-projects.json");
+    this.path = join(configurationDirectory(userDataPath), "chat-assistant-projects.json");
   }
 
   async list(): Promise<ChatAssistantProjectRef[]> {

@@ -147,6 +147,61 @@ export async function migrateWorkspaceDirectory(): Promise<WorkspaceDirectorySet
   );
 }
 
+export async function addWorkspaceDirectory(): Promise<WorkspaceDirectorySettings | null> {
+  const id = browserId("cmd_workspace_directory_add");
+  return WorkspaceDirectorySettingsSchema.nullable().parse(
+    await invokeCommand<WorkspaceDirectorySettings | null>(
+      createEnvelope("workspaceDirectory.add", {}, { id, correlationId: id })
+    )
+  );
+}
+
+export async function removeWorkspaceDirectory(
+  path: string
+): Promise<WorkspaceDirectorySettings> {
+  const id = browserId("cmd_workspace_directory_remove");
+  return WorkspaceDirectorySettingsSchema.parse(
+    await invokeCommand<WorkspaceDirectorySettings>(
+      createEnvelope(
+        "workspaceDirectory.remove",
+        { path },
+        { id, correlationId: id }
+      )
+    )
+  );
+}
+
+export async function switchWorkspaceDirectory(
+  path: string
+): Promise<WorkspaceDirectorySettings> {
+  const id = browserId("cmd_workspace_directory_switch");
+  return WorkspaceDirectorySettingsSchema.parse(
+    await invokeCommand<WorkspaceDirectorySettings>(
+      createEnvelope(
+        "workspaceDirectory.switch",
+        { path },
+        { id, correlationId: id }
+      )
+    )
+  );
+}
+
+export async function migrateWorkspaceDirectoryData(
+  sourcePath: string,
+  targetPath: string
+): Promise<WorkspaceDirectorySettings | null> {
+  const id = browserId("cmd_workspace_directory_migrate_data");
+  return WorkspaceDirectorySettingsSchema.nullable().parse(
+    await invokeCommand<WorkspaceDirectorySettings | null>(
+      createEnvelope(
+        "workspaceDirectory.migrateData",
+        { sourcePath, targetPath },
+        { id, correlationId: id }
+      )
+    )
+  );
+}
+
 export async function listGeneralSettings(): Promise<GeneralSettingsSnapshot> {
   const id = browserId("cmd_general_settings_list");
   return GeneralSettingsSnapshotSchema.parse(

@@ -27,9 +27,7 @@ export function buildSettingsFeatureModule(
     runtimeAvailable: Boolean(options.api()),
     workspaceDirectoryPath: settingsStore.workspaceDirectoryPath,
     workspaceDirectoryLoading: settingsStore.workspaceDirectoryLoading,
-    workspaceDirectoryPreviousPath:
-      settingsStore.workspaceDirectorySettings?.previousPath ?? null,
-    workspaceDirectoryMigrationSourcePath:
-      settingsStore.workspaceDirectorySettings?.migrationSourcePath ?? null
+    workspaceDirectoryDirectories:
+      settingsStore.workspaceDirectorySettings?.directories ?? []
   };
 }

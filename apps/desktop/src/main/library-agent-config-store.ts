@@ -172,12 +172,14 @@ function normalizeDiskSettings(raw: unknown): LibraryAgentSettingsInput {
   };
 }
 
+import { configurationDirectory } from "../storage-paths";
+
 export class LibraryAgentConfigStore {
   private readonly settingsPath: string;
   private writeChain: Promise<void> = Promise.resolve();
 
   constructor(userDataPath: string) {
-    this.settingsPath = join(userDataPath, "config", "library-agents.json");
+    this.settingsPath = join(configurationDirectory(userDataPath), "library-agents.json");
   }
 
   async list(): Promise<LibraryAgentSettings> {

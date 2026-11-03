@@ -23,7 +23,12 @@ function deferred<Value>() {
   return { promise, resolve, reject };
 }
 function workspace(path: string) {
-  return { path, previousPath: null, migrationSourcePath: null };
+  return {
+    path,
+    previousPath: null,
+    migrationSourcePath: null,
+    directories: path ? [path] : []
+  };
 }
 interface HarnessOverrides {
   runtimeAvailable?: boolean;
@@ -55,7 +60,11 @@ function createHarness(overrides: HarnessOverrides = {}) {
       list: listDirectory,
       choose: chooseDirectory,
       restore: vi.fn(async () => workspace("/workspace-a")),
-      migrate: vi.fn(async () => workspace("/workspace-a"))
+      migrate: vi.fn(async () => workspace("/workspace-a")),
+      add: vi.fn(async () => workspace("/workspace-c")),
+      remove: vi.fn(async (path: string) => workspace(path)),
+      switch: vi.fn(async (path: string) => workspace(path)),
+      migrateData: vi.fn(async () => workspace("/workspace-a"))
     }
   };
   let runtimeAvailable = overrides.runtimeAvailable ?? true;
@@ -91,6 +100,7 @@ function createHarness(overrides: HarnessOverrides = {}) {
   });
   return {
     coordinator,
+    migrateData: api.workspaceDirectory.migrateData,
     currentView,
     settingsInitialCategory,
     workspaceMainView,
@@ -110,6 +120,35 @@ function createHarness(overrides: HarnessOverrides = {}) {
   };
 }
 describe("useWorkspaceFeatureHostCoordinator", () => {
+  it("passes full source and target paths to the migration API", async () => {
+    const harness = createHarness();
+    const sourcePath = "/Users/example/Documents/test";
+    const targetPath = "/Users/example/Documents/test2";
+    await harness.coordinator.migrateWorkspaceDirectoryData(
+      sourcePath,
+      targetPath
+    );
+    expect(harness.migrateData).toHaveBeenCalledExactlyOnceWith(
+      sourcePath,
+      targetPath
+    );
+    expect(harness.errors).toEqual([]);
+    expect(harness.successes).toHaveLength(1);
+  });
+
+  it("surfaces empty-directory validation errors without reporting migration success", async () => {
+    const harness = createHarness();
+    harness.migrateData.mockRejectedValueOnce(
+      new Error("目标目录必须为空目录")
+    );
+    await harness.coordinator.migrateWorkspaceDirectoryData(
+      "/source",
+      "/target"
+    );
+    expect(harness.errors).toEqual(["目标目录必须为空目录"]);
+    expect(harness.successes).toEqual([]);
+    expect(harness.settingsStore.workspaceDirectoryLoading).toBe(false);
+  });
   it("prioritizes settings, then an open long workspace, then the selected main view", () => {
     const harness = createHarness();
 

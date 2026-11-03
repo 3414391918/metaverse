@@ -53,8 +53,10 @@ const emit = defineEmits<{
   setAgentTeamEnabled: [input: AgentTeamProfileSetEnabledInput];
   saveAgentTeam: [input: AgentTeamProfileSaveInput];
   chooseWorkspaceDirectory: [];
-  restoreWorkspaceDirectory: [];
-  migrateWorkspaceDirectory: [];
+  addWorkspaceDirectory: [];
+  removeWorkspaceDirectory: [path: string];
+  switchWorkspaceDirectory: [path: string];
+  migrateWorkspaceDirectoryData: [paths: { sourcePath: string; targetPath: string }];
   refreshCatalog: [];
 }>();
 </script>
@@ -127,10 +129,7 @@ const emit = defineEmits<{
     :runtime-available="module.runtimeAvailable"
     :workspace-directory-path="module.workspaceDirectoryPath"
     :workspace-directory-loading="module.workspaceDirectoryLoading"
-    :workspace-directory-previous-path="module.workspaceDirectoryPreviousPath"
-    :workspace-directory-migration-source-path="
-      module.workspaceDirectoryMigrationSourcePath
-    "
+    :workspace-directory-directories="module.workspaceDirectoryDirectories"
     @back="emit('back')"
     @update-permission-mode="emit('updatePermissionMode', $event)"
     @update-auto-approve-cross-stage-operations="
@@ -147,7 +146,11 @@ const emit = defineEmits<{
     @save-library-agents="emit('saveLibraryAgents', $event)"
     @reset-library-agent="emit('resetLibraryAgent', $event)"
     @choose-workspace-directory="emit('chooseWorkspaceDirectory')"
-    @restore-workspace-directory="emit('restoreWorkspaceDirectory')"
-    @migrate-workspace-directory="emit('migrateWorkspaceDirectory')"
+    @add-workspace-directory="emit('addWorkspaceDirectory')"
+    @remove-workspace-directory="emit('removeWorkspaceDirectory', $event)"
+    @switch-workspace-directory="emit('switchWorkspaceDirectory', $event)"
+    @migrate-workspace-directory-data="
+      emit('migrateWorkspaceDirectoryData', $event)
+    "
   />
 </template>

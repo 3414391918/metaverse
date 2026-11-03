@@ -28,13 +28,15 @@ function emptyState(): State {
   return { version: 1, encryptedKey: null };
 }
 
+import { configurationDirectory } from "../storage-paths";
+
 export class FishAudioService {
   private readonly path: string;
   private pending: Promise<unknown> = Promise.resolve();
   private readonly operations = new Map<string, AbortController>();
 
   constructor(userDataPath: string) {
-    this.path = join(userDataPath, "config", "fish-audio.json");
+    this.path = join(configurationDirectory(userDataPath), "fish-audio.json");
   }
 
   private async read(): Promise<State> {

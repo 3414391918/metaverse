@@ -7,11 +7,13 @@ import {
   type ChatAssistantRoleplayConfig
 } from "@deepwrite/contracts";
 
+import { configurationDirectory } from "../storage-paths";
+
 export class ChatAssistantRoleplayStore {
   private readonly path: string;
   private writeChain: Promise<void> = Promise.resolve();
   constructor(userDataPath: string) {
-    this.path = join(userDataPath, "config", "chat-assistant-roleplay.json");
+    this.path = join(configurationDirectory(userDataPath), "chat-assistant-roleplay.json");
   }
   private async read(): Promise<ChatAssistantRoleplayConfig[]> {
     try {

@@ -12,6 +12,7 @@ import { handleAppearanceCommands } from "./appearance-commands";
 import type { IpcCommandContext } from "./command-types";
 import { safeErrorDetails } from "./errors";
 import { handlePromptTemplateCommands } from "./prompt-template-commands";
+import { addWorkspaceDirectory } from "./workspace-paths";
 export async function handleSettingsCommands(
   ctx: IpcCommandContext,
   command: CommandEnvelope
@@ -91,6 +92,100 @@ export async function handleSettingsCommands(
           code: `workspace_directory.${command.type === "workspaceDirectory.restore" ? "restore" : "migrate"}_failed`,
           message:
             error instanceof Error ? error.message : "工作目录操作失败。",
+          details: safeErrorDetails(error)
+        }
+      };
+    }
+  }
+  if (command.type === "workspaceDirectory.add") {
+    try {
+      return {
+        status: "accepted",
+        requestId: command.id,
+        payload: await addWorkspaceDirectory({
+          requireWorkspaceDirectoryStore: ctx.requireWorkspaceDirectoryStore,
+          getDocumentsPath: ctx.getDocumentsPath,
+          dialog: ctx.dialog
+        })
+      };
+    } catch (error: unknown) {
+      return {
+        status: "rejected",
+        requestId: command.id,
+        error: {
+          code: "workspace_directory.add_failed",
+          message: error instanceof Error ? error.message : "添加工作目录失败。",
+          details: safeErrorDetails(error)
+        }
+      };
+    }
+  }
+  if (command.type === "workspaceDirectory.remove") {
+    try {
+      return {
+        status: "accepted",
+        requestId: command.id,
+        payload: WorkspaceDirectorySettingsSchema.parse(
+          await ctx
+            .requireWorkspaceDirectoryStore()
+            .remove(command.payload.path)
+        )
+      };
+    } catch (error: unknown) {
+      return {
+        status: "rejected",
+        requestId: command.id,
+        error: {
+          code: "workspace_directory.remove_failed",
+          message: error instanceof Error ? error.message : "移除工作目录失败。",
+          details: safeErrorDetails(error)
+        }
+      };
+    }
+  }
+  if (command.type === "workspaceDirectory.switch") {
+    try {
+      const store = ctx.requireWorkspaceDirectoryStore();
+      const current = await store.list();
+      if (command.payload.path !== current.path) await stopAssistant();
+      return {
+        status: "accepted",
+        requestId: command.id,
+        payload: WorkspaceDirectorySettingsSchema.parse(
+          await store.switch(command.payload.path)
+        )
+      };
+    } catch (error: unknown) {
+      return {
+        status: "rejected",
+        requestId: command.id,
+        error: {
+          code: "workspace_directory.switch_failed",
+          message: error instanceof Error ? error.message : "切换工作目录失败。",
+          details: safeErrorDetails(error)
+        }
+      };
+    }
+  }
+  if (command.type === "workspaceDirectory.migrateData") {
+    try {
+      const store = ctx.requireWorkspaceDirectoryStore();
+      await store.migrateData(
+        command.payload.sourcePath,
+        command.payload.targetPath
+      );
+      return {
+        status: "accepted",
+        requestId: command.id,
+        payload: WorkspaceDirectorySettingsSchema.parse(await store.list())
+      };
+    } catch (error: unknown) {
+      return {
+        status: "rejected",
+        requestId: command.id,
+        error: {
+          code: "workspace_directory.migrate_data_failed",
+          message: error instanceof Error ? error.message : "数据迁移失败。",
           details: safeErrorDetails(error)
         }
       };

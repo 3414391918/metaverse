@@ -15,7 +15,14 @@ export interface WorkspaceFeatureHostNotifications {
 export interface WorkspaceFeatureHostApi {
   workspaceDirectory: Pick<
     DeepWriteApi["workspaceDirectory"],
-    "choose" | "list" | "restore" | "migrate"
+    | "choose"
+    | "list"
+    | "restore"
+    | "migrate"
+    | "add"
+    | "remove"
+    | "switch"
+    | "migrateData"
   >;
 }
 
@@ -54,6 +61,13 @@ export interface WorkspaceFeatureHostCoordinator {
   openAgentTeams(): Promise<void>;
   loadWorkspaceDirectory(): Promise<void>;
   chooseWorkspaceDirectory(): Promise<void>;
+  addWorkspaceDirectory(): Promise<void>;
+  removeWorkspaceDirectory(path: string): Promise<void>;
+  switchWorkspaceDirectory(path: string): Promise<void>;
+  migrateWorkspaceDirectoryData(
+    sourcePath: string,
+    targetPath: string
+  ): Promise<void>;
   restoreWorkspaceDirectory(): Promise<void>;
   migrateWorkspaceDirectory(): Promise<void>;
   closeSettings(): void;

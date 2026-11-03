@@ -35,12 +35,14 @@ function toPublicSettings(raw: unknown): AppearanceSettings {
   return AppearanceSettingsSchema.parse(raw);
 }
 
+import { configurationDirectory } from "../storage-paths";
+
 export class AppearanceConfigStore {
   readonly settingsPath: string;
   private writeChain: Promise<void> = Promise.resolve();
 
   constructor(userDataPath: string) {
-    this.settingsPath = join(userDataPath, "config", "appearance.json");
+    this.settingsPath = join(configurationDirectory(userDataPath), "appearance.json");
   }
 
   async list(): Promise<AppearanceSettingsSnapshot> {

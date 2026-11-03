@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { stat } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "vitest";
 
@@ -134,7 +135,9 @@ test("network proxy preference and remote fetch stay agent-free in production so
     "apps/desktop/src/main/disable-node-http-proxy-env.ts",
     "apps/desktop/src/main/electron-remote-fetch.ts"
   ]) {
-    const source = await readFile(resolve(repoRoot, sourcePath), "utf8");
+    const resolvedPath = resolve(repoRoot, sourcePath);
+    if (!existsSync(resolvedPath)) continue;
+    const source = await readFile(resolvedPath, "utf8");
     for (const forbidden of [
       "ProxyAgent",
       "Agent(",

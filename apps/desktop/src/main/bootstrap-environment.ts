@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { createId } from "@deepwrite/shared";
 import { resolveDeepWriteAppMode } from "./app-run-mode";
 
@@ -22,7 +22,7 @@ export function createBootstrapEnvironment(
 ) {
   const environment = options.environment ?? process.env;
   const exists = options.exists ?? existsSync;
-  const cwd = options.cwd ?? (() => process.cwd());
+
   const instanceId = options.createInstanceId?.() ?? createId("main_instance");
   return (
     application: ApplicationPaths,
@@ -32,34 +32,12 @@ export function createBootstrapEnvironment(
     environment.DEEPWRITE_USER_DATA_PATH = userDataPath;
     environment.DEEPWRITE_APP_MODE = resolveDeepWriteAppMode(configuredMode);
 
-    const currentLegacyRoot = join(
-      application.getPath("home"),
-      "Library",
-      "Application Support",
-      "DeepWrite",
-      ".data"
-    );
-    const configuredProjectRoot =
-      environment.DEEPWRITE_LEGACY_PROJECT_DATA_ROOT?.trim();
-    const repositoryCandidates = [
-      ...(configuredProjectRoot ? [resolve(configuredProjectRoot)] : []),
-      join(
-        application.getPath("home"),
-        "project",
-        "openwrite",
-        "write-claw",
-        ".data"
-      ),
-      resolve(cwd(), "../openwrite/write-claw/.data"),
-      resolve(application.getAppPath(), "../../../openwrite/write-claw/.data")
-    ];
-    const repositoryFallback =
-      repositoryCandidates.find((candidate) => exists(candidate)) ??
-      repositoryCandidates[0]!;
-    const legacyDataRoots = [
-      ...(exists(currentLegacyRoot) ? [currentLegacyRoot] : []),
-      ...(exists(repositoryFallback) ? [repositoryFallback] : [])
-    ].filter((root, index, roots) => roots.indexOf(root) === index);
+    // External legacy data is read only when the user explicitly selects an import root.
+    // Never discover another application's home/profile automatically.
+    const configuredProjectRoot = environment.DEEPWRITE_LEGACY_PROJECT_DATA_ROOT?.trim();
+    const legacyDataRoots = configuredProjectRoot && exists(resolve(configuredProjectRoot))
+      ? [resolve(configuredProjectRoot)]
+      : [];
     if (legacyDataRoots.length > 0) {
       environment.DEEPWRITE_LEGACY_DATA_ROOT = legacyDataRoots[0];
       environment.DEEPWRITE_LEGACY_DATA_ROOTS = JSON.stringify(legacyDataRoots);

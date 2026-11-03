@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 import {
   ConversationExportResultSchemas,
   createEnvelope,
@@ -66,7 +66,9 @@ async function begin(
     created.selection = (async (): Promise<SelectedFile> => {
       const selection = await ctx.dialog.showSaveDialog(ctx.getMainWindow(), {
         title: "导出当前对话（含未保存内容）",
-        defaultPath: safeName(command.payload.suggestedName),
+        defaultPath: process.env.METAVERSE_OUTPUTS_ROOT
+          ? join(process.env.METAVERSE_OUTPUTS_ROOT, "exports", safeName(command.payload.suggestedName))
+          : safeName(command.payload.suggestedName),
         filters: [{ name: "JSON 对话文件", extensions: ["json"] }],
         properties: ["createDirectory", "showOverwriteConfirmation"]
       });

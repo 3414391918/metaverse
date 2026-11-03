@@ -62,8 +62,7 @@ const props = defineProps<{
   runtimeAvailable: boolean;
   workspaceDirectoryPath: string | null;
   workspaceDirectoryLoading: boolean;
-  workspaceDirectoryPreviousPath: string | null;
-  workspaceDirectoryMigrationSourcePath: string | null;
+  workspaceDirectoryDirectories: string[];
 }>();
 
 const emit = defineEmits<{
@@ -81,8 +80,12 @@ const emit = defineEmits<{
   saveLibraryAgents: [settings: LibraryAgentSettingsInput];
   resetLibraryAgent: [domain: LibraryAgentDomain];
   chooseWorkspaceDirectory: [];
-  restoreWorkspaceDirectory: [];
-  migrateWorkspaceDirectory: [];
+  addWorkspaceDirectory: [];
+  removeWorkspaceDirectory: [path: string];
+  switchWorkspaceDirectory: [path: string];
+  migrateWorkspaceDirectoryData: [
+    paths: { sourcePath: string; targetPath: string }
+  ];
 }>();
 const searchQuery = ref("");
 
@@ -234,11 +237,12 @@ function selectCategory(id: string): void {
           v-else-if="activeCategory === 'directory'"
           :path="workspaceDirectoryPath"
           :loading="workspaceDirectoryLoading"
-          :previous-path="workspaceDirectoryPreviousPath"
-          :migration-source-path="workspaceDirectoryMigrationSourcePath"
+          :directories="workspaceDirectoryDirectories"
           @choose="emit('chooseWorkspaceDirectory')"
-          @restore="emit('restoreWorkspaceDirectory')"
-          @migrate="emit('migrateWorkspaceDirectory')"
+          @add="emit('addWorkspaceDirectory')"
+          @remove="emit('removeWorkspaceDirectory', $event)"
+          @switch="emit('switchWorkspaceDirectory', $event)"
+          @migrate-data="emit('migrateWorkspaceDirectoryData', $event)"
         />
 
         <AppearanceSettingsPanel v-else-if="activeCategory === 'appearance'" />

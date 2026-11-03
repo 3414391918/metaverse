@@ -38,12 +38,14 @@ async function atomicWriteJson(path: string, value: unknown): Promise<void> {
   await rename(temporary, path);
 }
 
+import { configurationDirectory } from "../storage-paths";
+
 export class GeneralSettingsStore {
   readonly settingsPath: string;
   private writeChain: Promise<void> = Promise.resolve();
 
   constructor(userDataPath: string) {
-    this.settingsPath = join(userDataPath, "config", "general-settings.json");
+    this.settingsPath = join(configurationDirectory(userDataPath), "general-settings.json");
   }
 
   async list(): Promise<GeneralSettingsSnapshot> {

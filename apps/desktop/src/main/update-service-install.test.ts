@@ -28,6 +28,10 @@ vi.mock("electron-updater", () => ({
   autoUpdater: updaterMocks
 }));
 
+vi.mock("./application-updater", () => ({
+  createApplicationUpdater: () => updaterMocks
+}));
+
 import { UpdateService } from "./update-service";
 
 describe("UpdateService install handoff", () => {

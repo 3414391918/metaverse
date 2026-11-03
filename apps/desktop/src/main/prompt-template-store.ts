@@ -78,6 +78,8 @@ function legacyTemplates(raw: unknown): PromptTemplate[] {
   );
 }
 
+import { configurationDirectory } from "../storage-paths";
+
 export class PromptTemplateStore {
   private readonly legacyPath: string;
   private writeChain: Promise<void> = Promise.resolve();
@@ -87,8 +89,7 @@ export class PromptTemplateStore {
     private readonly workspaceDirectoryStore: WorkspaceDirectoryStore
   ) {
     this.legacyPath = join(
-      userDataPath,
-      "config",
+      configurationDirectory(userDataPath),
       "long-workspace-agents.json"
     );
   }

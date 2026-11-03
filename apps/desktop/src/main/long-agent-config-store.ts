@@ -164,14 +164,15 @@ function parseDiskSettings(raw: unknown): LongAgentSettingsInput {
   };
 }
 
+import { configurationDirectory } from "../storage-paths";
+
 export class LongAgentConfigStore {
   private readonly settingsPath: string;
   private writeChain: Promise<void> = Promise.resolve();
 
   constructor(userDataPath: string) {
     this.settingsPath = join(
-      userDataPath,
-      "config",
+      configurationDirectory(userDataPath),
       "long-workspace-agents.json"
     );
   }

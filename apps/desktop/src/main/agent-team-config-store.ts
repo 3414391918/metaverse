@@ -42,13 +42,15 @@ function cloneSnapshot(
   return AgentTeamCatalogSnapshotSchema.parse(structuredClone(snapshot));
 }
 
+import { configurationDirectory } from "../storage-paths";
+
 export class AgentTeamConfigStore {
   private readonly settingsPath: string;
   private readonly legacyLongPath: string;
   private writeChain: Promise<void> = Promise.resolve();
 
   constructor(userDataPath: string) {
-    const configRoot = join(userDataPath, "config");
+    const configRoot = configurationDirectory(userDataPath);
     this.settingsPath = join(configRoot, "agent-team-profiles.json");
     this.legacyLongPath = join(configRoot, "long-agent-teams.json");
   }

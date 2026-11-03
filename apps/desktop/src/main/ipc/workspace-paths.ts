@@ -54,3 +54,46 @@ export async function requireSelectedWorkspaceDirectory(options: {
   }
   return (await options.chooseWorkspaceDirectory())?.path ?? null;
 }
+
+async function pickDirectory(
+  options: {
+    requireWorkspaceDirectoryStore: () => WorkspaceDirectoryStore;
+    getDocumentsPath: () => string;
+    dialog: Pick<Electron.Dialog, "showOpenDialog">;
+  },
+  title: string,
+  defaultToCurrentPath: boolean
+): Promise<string | null> {
+  const current = await options.requireWorkspaceDirectoryStore().list();
+  const selection = await options.dialog.showOpenDialog({
+    title,
+    defaultPath: defaultToCurrentPath
+      ? current.path ?? options.getDocumentsPath()
+      : options.getDocumentsPath(),
+    properties: ["openDirectory", "createDirectory"]
+  });
+  const selectedDirectory = selection.filePaths[0];
+  if (selection.canceled || !selectedDirectory) {
+    return null;
+  }
+  return selectedDirectory;
+}
+
+/** Picks a directory and registers it in the managed list without switching. */
+export async function addWorkspaceDirectory(options: {
+  requireWorkspaceDirectoryStore: () => WorkspaceDirectoryStore;
+  getDocumentsPath: () => string;
+  dialog: Pick<Electron.Dialog, "showOpenDialog">;
+}): Promise<ReturnType<typeof WorkspaceDirectorySettingsSchema.parse> | null> {
+  const selected = await pickDirectory(
+    options,
+    "选择要登记的元宇宙工作目录",
+    false
+  );
+  if (!selected) {
+    return null;
+  }
+  return WorkspaceDirectorySettingsSchema.parse(
+    await options.requireWorkspaceDirectoryStore().add(selected)
+  );
+}

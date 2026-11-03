@@ -1,4 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
+import { prepareAssistantStorage } from "./assistant-storage";
 import { randomBytes } from "node:crypto";
 import {
   lstat,
@@ -33,8 +35,9 @@ export function assistantReadyUrl(line: string): string | undefined {
   );
   return match?.[1];
 }
-export function assistantOverlay(pluginPath: string, workspace: string) {
+export function assistantOverlay(pluginPath: string, workspace: string, configs?: string) {
   return [
+    ...(configs ? [{ id: "credentials", config: { path: join(configs, ".credentials.yaml") } }] : []),
     ...[
       "ui-layout",
       "ui-sidebar",
@@ -144,16 +147,17 @@ export class AssistantRuntime {
     workspace: string,
     generation: number
   ): Promise<AssistantConnection> {
-    const home = join(workspace, "assistant");
-    await mkdir(home, { recursive: true });
+    const inheritedEnvironment = { ...process.env, ...this.options.environment };
+    const storage = await prepareAssistantStorage(workspace, inheritedEnvironment);
+    const { home, configs } = storage;
     await this.migrateModelSelection(home);
     // Reject redirected state folders before handing them to the subprocess.
     if ((await realpath(home)) !== resolve(home))
       throw new Error("智能体数据目录不能是符号链接。");
-    const overlay = join(home, "metaverse.patch.json");
+    const overlay = join(configs, "metaverse.patch.json");
     await writeGenerated(
       overlay,
-      JSON.stringify(assistantOverlay(this.options.plugin, workspace), null, 2)
+      JSON.stringify(assistantOverlay(this.options.plugin, workspace, storage.relocated ? configs : undefined), null, 2)
     );
     const guide = join(home, "platform.md");
     await writeGenerated(
@@ -175,10 +179,6 @@ export class AssistantRuntime {
       0o755
     );
     if (generation !== this.generation) throw new Error("智能体启动已取消。");
-    const inheritedEnvironment = {
-      ...process.env,
-      ...this.options.environment
-    };
     const proxyEnvironment = assistantProxyEnvironment(
       (await this.options.proxyResolver?.()) ?? "DIRECT",
       inheritedEnvironment
@@ -191,6 +191,9 @@ export class AssistantRuntime {
         "web",
         "--patch",
         overlay,
+        ...(storage.relocated && existsSync(join(configs, "cordis.patch.yml"))
+          ? ["--patch", join(configs, "cordis.patch.yml")]
+          : []),
         "--no-open",
         "--port",
         "0"
@@ -204,6 +207,10 @@ export class AssistantRuntime {
           ...proxyEnvironment,
           ELECTRON_RUN_AS_NODE: undefined,
           DSH_HOME: home,
+          ...(storage.relocated ? {
+            DSH_AGENTS_HOME: join(inheritedEnvironment.METAVERSE_CONFIGS_ROOT!, "agents"),
+            npm_config_cache: join(inheritedEnvironment.METAVERSE_OUTPUTS_ROOT!, "cache", "npm")
+          } : {}),
           PATH: `${bin}${delimiter}${process.env.PATH ?? ""}`,
           METAVERSE_ASSISTANT_GUIDE: guide,
           METAVERSE_WORKSPACE_ROOT: workspace

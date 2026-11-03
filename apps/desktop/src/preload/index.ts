@@ -84,9 +84,13 @@ import {
 } from "./legacy-catalog-book-api";
 import { long } from "./long-api";
 import {
+  addWorkspaceDirectory,
   chooseWorkspaceDirectory,
   restoreWorkspaceDirectory,
   migrateWorkspaceDirectory,
+  migrateWorkspaceDirectoryData,
+  removeWorkspaceDirectory,
+  switchWorkspaceDirectory,
   exportLongManuscript,
   listGeneralSettings,
   listLibraryAgents,
@@ -206,7 +210,11 @@ const api: DeepWriteApi = {
     list: listWorkspaceDirectory,
     choose: chooseWorkspaceDirectory,
     restore: restoreWorkspaceDirectory,
-    migrate: migrateWorkspaceDirectory
+    migrate: migrateWorkspaceDirectory,
+    add: addWorkspaceDirectory,
+    remove: removeWorkspaceDirectory,
+    switch: switchWorkspaceDirectory,
+    migrateData: migrateWorkspaceDirectoryData
   },
   appearance,
   generalSettings: {

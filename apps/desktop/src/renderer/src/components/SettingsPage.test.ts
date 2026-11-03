@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as Vue from "vue";
+import { compileTemplate } from "vue/compiler-sfc";
+import ts from "typescript";
 import { expectSourceToContain } from "../../../test-utils/sourceText";
 import appSource from "../test-support/workspaceShellSource";
 import featureModulesSource from "./WorkspaceFeatureModules.vue?raw";
@@ -16,6 +19,40 @@ const generalSettingsSource = `${source}\n${generalPanelSource}`;
 const featureHostSource = `${featureHostCoordinatorSource}\n${featureHostModuleSource}\n${settingsFeatureModuleSource}`;
 
 describe("SettingsPage", () => {
+  it("forwards both complete migration paths through the compiled Vue listener", () => {
+    const handler = source.match(/@migrate-data="([\s\S]*?)"/u)?.[1];
+    expect(handler).toBeTruthy();
+    const compiled = compileTemplate({
+      source: `<Directory @migrate-data="${handler}" />`,
+      filename: "migration-event-regression.vue",
+      id: "migration-event-regression"
+    });
+    expect(compiled.errors).toEqual([]);
+    const javascript = ts.transpileModule(compiled.code, {
+      compilerOptions: { module: ts.ModuleKind.CommonJS }
+    }).outputText;
+    const moduleExports: {
+      render?: (context: object, cache: unknown[]) => Vue.VNode;
+    } = {};
+    new Function("require", "exports", javascript)(
+      () => ({ ...Vue, resolveComponent: () => "Directory" }),
+      moduleExports
+    );
+    const emit = vi.fn();
+    const paths = {
+      sourcePath: "/Users/example/Documents/test",
+      targetPath: "/Users/example/Documents/test2"
+    };
+    const vnode = moduleExports.render!({ emit }, []);
+    vnode.props!.onMigrateData(paths);
+    expect(emit).toHaveBeenCalledExactlyOnceWith(
+      "migrateWorkspaceDirectoryData",
+      paths
+    );
+    expect(directorySource).toContain(
+      'emit("migrateData", { sourcePath, targetPath })'
+    );
+  });
   it("can open directly on a requested settings category", () => {
     expect(source).toContain("initialCategory?: string");
     expect(source).toContain("category.id === props.initialCategory");

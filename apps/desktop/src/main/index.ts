@@ -1,3 +1,5 @@
+import { join } from "node:path";
+import { configureApplicationStorage } from "../storage-paths";
 import { stopAssistant } from "./assistant-service";
 import {
   createDefaultAppearanceSettings,
@@ -55,6 +57,7 @@ import { createRendererStateFlushCoordinator } from "./renderer-state-flush";
 import { UtilitySupervisor } from "./supervisor";
 import { UpdateService } from "./update-service";
 import { createUtilityEventHandlers } from "./utility-event-handlers";
+const applicationStorage = configureApplicationStorage(app);
 registerAppearanceFontScheme();
 registerLongImageScheme();
 const desktopStartup = createDesktopStartup();
@@ -233,7 +236,7 @@ async function loadAndSyncNativeAppearanceChrome(): Promise<void> {
 const chooseWorkspaceDirectory = () =>
   chooseWorkspaceDirectoryWithServices({
     requireWorkspaceDirectoryStore,
-    getDocumentsPath: () => app.getPath("documents"),
+    getDocumentsPath: () => applicationStorage.root,
     dialog
   });
 const requireSelectedWorkspaceDirectory = () =>
@@ -280,7 +283,7 @@ function registerIpc(): void {
       workspaceGroupParent,
       chooseWorkspaceDirectory,
       senderWebContentsId,
-      getDocumentsPath: () => app.getPath("documents"),
+      getDocumentsPath: () => applicationStorage.root,
       getAppVersion: () => app.getVersion()
     })
   });
@@ -319,7 +322,7 @@ if (!hasSingleInstanceLock) {
     installLongImageProtocolHandler(userDataPath);
     await desktopStartup.step("workspace", () =>
       services.workspaceDirectoryStore.initializeDefault(
-        app.getPath("documents")
+        join(applicationStorage.root, "metadata")
       )
     );
     await desktopStartup.step("prompt-templates", async () => {

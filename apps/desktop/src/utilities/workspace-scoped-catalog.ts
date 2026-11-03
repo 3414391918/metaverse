@@ -12,6 +12,8 @@ interface WorkspaceScope {
   longWorkspaceService: LongWorkspaceService;
   handle: ReturnType<typeof createCatalogCoreHandler>;
 }
+import { configurationDirectory } from "../storage-paths";
+
 export function createWorkspaceScopedCatalog(resolvedUserDataPath: string) {
   let activeScope: Promise<WorkspaceScope> | undefined;
   let activeRoot: string | undefined;
@@ -19,7 +21,7 @@ export function createWorkspaceScopedCatalog(resolvedUserDataPath: string) {
   async function selectedRoot(): Promise<string> {
     const config = JSON.parse(
       await readFile(
-        join(resolvedUserDataPath, "config", "workspace-directory.json"),
+        join(configurationDirectory(resolvedUserDataPath), "workspace-directory.json"),
         "utf8"
       )
     ) as { path?: unknown };

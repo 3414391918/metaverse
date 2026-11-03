@@ -79,6 +79,8 @@ function parseStateFile(raw: unknown): AppAlertStateFile | undefined {
   };
 }
 
+import { configurationDirectory } from "../storage-paths";
+
 export class AppAlertStore {
   private readonly statePath: string;
   private readonly fetcher: RemoteConfigFetcher;
@@ -91,7 +93,7 @@ export class AppAlertStore {
   private refreshPromise: Promise<void> | undefined;
 
   constructor(userDataPath: string, options: AppAlertStoreOptions = {}) {
-    this.statePath = join(userDataPath, "config", "app-alert-state.json");
+    this.statePath = join(configurationDirectory(userDataPath), "app-alert-state.json");
     this.fetcher = options.fetcher ?? globalThis.fetch.bind(globalThis);
     this.configUrl = options.configUrl ?? APP_ALERT_CONFIG_URL;
     this.now = options.now ?? Date.now;

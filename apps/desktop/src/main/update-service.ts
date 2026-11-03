@@ -1,5 +1,7 @@
 import { app, net } from "electron";
-import { autoUpdater, type ProgressInfo } from "electron-updater";
+import type { AppUpdater, ProgressInfo } from "electron-updater";
+import { createApplicationUpdater } from "./application-updater";
+let autoUpdater: AppUpdater;
 import {
   UPDATE_MANIFEST_URL,
   UpdateManifestSchema,
@@ -25,6 +27,7 @@ export class UpdateService {
   private downloadPromise: Promise<UpdateState> | undefined;
 
   constructor(private readonly requestInstall: () => void) {
+    autoUpdater ??= createApplicationUpdater();
     this.state = UpdateStateSchema.parse({
       status: "idle",
       currentVersion: app.getVersion(),

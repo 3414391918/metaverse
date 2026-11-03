@@ -20,13 +20,17 @@ const phaseLabels: Record<StartupPhase, string> = {
 
 /** Install before app readiness so native startup crashes can leave a local dump. */
 export function createDesktopStartup() {
-  const directory = join(app.getPath("userData"), "diagnostics");
+  const directory = process.env.METAVERSE_OUTPUTS_ROOT
+    ? join(process.env.METAVERSE_OUTPUTS_ROOT, "logs", "diagnostics")
+    : join(app.getPath("userData"), "diagnostics");
   const log = createStartupLog(directory);
   log.write(
     `start.${app.getVersion()}.${process.platform}.${process.arch}.electron-${process.versions.electron}`
   );
   try {
-    const crashes = join(directory, "crashes");
+    const crashes = process.env.METAVERSE_OUTPUTS_ROOT
+      ? join(process.env.METAVERSE_OUTPUTS_ROOT, "crashes")
+      : join(directory, "crashes");
     mkdirSync(crashes, { recursive: true });
     app.setPath("crashDumps", crashes);
     crashReporter.start({ uploadToServer: false });

@@ -1,14 +1,22 @@
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const require = createRequire(import.meta.url);
 const cli = join(dirname(require.resolve("electron-vite")), "cli.js");
+const args = process.argv.slice(2);
+const root = dirname(dirname(fileURLToPath(import.meta.url)));
+// Chromium initializes Local State before the application's main module runs.
+// Supply its profile at process launch, not only through app.setPath().
+if (!args.some((arg) => arg === "--user-data-dir" || arg.startsWith("--user-data-dir="))) {
+  if (!args.includes("--")) args.push("--");
+  args.push(`--user-data-dir=${join(root, "outputs", "electron")}`);
+}
 if (process.platform === "win32") {
   // Windows has no POSIX process groups. Keep electron-vite's native console
   // handling rather than using child.kill(), which force-terminates on Windows.
-  process.argv = [process.execPath, cli, "dev", ...process.argv.slice(2)];
+  process.argv = [process.execPath, cli, "dev", ...args];
   await import(pathToFileURL(cli).href);
 } else {
   runIsolatedDevelopment();
@@ -35,7 +43,7 @@ function runIsolatedDevelopment() {
 
   process.on("SIGINT", interrupt);
   process.on("SIGTERM", interrupt);
-  child = spawn(process.execPath, [cli, "dev", ...process.argv.slice(2)], {
+  child = spawn(process.execPath, [cli, "dev", ...args], {
     detached: true,
     stdio: "inherit"
   });

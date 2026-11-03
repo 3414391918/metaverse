@@ -2,6 +2,7 @@ node_modules/
 /resources/
 /metadata/
 /outputs/
+/configs/
 /.runtime/
 .pnpm-store/
 out/

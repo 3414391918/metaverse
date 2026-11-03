@@ -149,7 +149,8 @@ export function useWorkspaceFeatureHostCoordinator(
   }
 
   async function runWorkspaceDirectoryAction(
-    action: "choose" | "restore" | "migrate"
+    action: "choose" | "restore" | "migrate" | "add" | "migrateData",
+    payload?: { path?: string; sourcePath?: string; targetPath?: string }
   ): Promise<void> {
     const api = options.api();
     if (
@@ -165,7 +166,16 @@ export function useWorkspaceFeatureHostCoordinator(
     settingsStore.workspaceDirectoryLoading = true;
     try {
       const originalPath = settingsStore.workspaceDirectoryPath;
-      const settings = await api.workspaceDirectory[action]();
+      const settings = await (action === "choose"
+        ? api.workspaceDirectory.choose()
+        : action === "add"
+          ? api.workspaceDirectory.add()
+          : action === "migrateData"
+            ? api.workspaceDirectory.migrateData(
+                payload?.sourcePath ?? "",
+                payload?.targetPath ?? ""
+              )
+            : undefined);
       if (!active || generation !== directoryChooseGeneration || !settings) {
         return;
       }
@@ -173,9 +183,13 @@ export function useWorkspaceFeatureHostCoordinator(
       options.notifications.success(
         action === "migrate"
           ? "数据迁移完成，来源目录仍保留原文件"
-          : action === "restore"
-            ? "已恢复上一个工作目录"
-            : "工作目录已切换"
+          : action === "migrateData"
+            ? "数据迁移完成：来源目录保留原文件，当前目录与登记不受影响"
+            : action === "add"
+              ? "目录已登记到工作目录列表"
+              : action === "restore"
+                ? "已恢复上一个工作目录"
+                : "工作目录已切换"
       );
       if (
         typeof window !== "undefined" &&
@@ -195,8 +209,80 @@ export function useWorkspaceFeatureHostCoordinator(
     }
   }
 
+  async function runWorkspaceDirectoryMutation(
+    action: "remove" | "switch",
+    path: string
+  ): Promise<void> {
+    const api = options.api();
+    if (
+      !active ||
+      !api ||
+      directoryChoosePending ||
+      settingsStore.workspaceDirectoryLoading
+    ) {
+      return;
+    }
+    const generation = ++directoryChooseGeneration;
+    directoryChoosePending = true;
+    settingsStore.workspaceDirectoryLoading = true;
+    try {
+      const originalPath = settingsStore.workspaceDirectoryPath;
+      const settings =
+        action === "remove"
+          ? await api.workspaceDirectory.remove(path)
+          : await api.workspaceDirectory.switch(path);
+      if (!active || generation !== directoryChooseGeneration) {
+        return;
+      }
+      settingsStore.markLoaded("workspaceDirectory", settings);
+      options.notifications.success(
+        action === "remove"
+          ? "目录已从管理列表移除，磁盘文件未改动"
+          : "工作目录已切换"
+      );
+      if (
+        typeof window !== "undefined" &&
+        action === "switch" &&
+        settings.path !== originalPath
+      ) {
+        window.location.reload();
+      }
+    } catch (error: unknown) {
+      if (active && generation === directoryChooseGeneration) {
+        options.notifications.error(errorMessage(error, "工作目录操作失败。"));
+      }
+    } finally {
+      if (generation === directoryChooseGeneration) {
+        directoryChoosePending = false;
+        settingsStore.workspaceDirectoryLoading = false;
+      }
+    }
+  }
+
   function chooseWorkspaceDirectory(): Promise<void> {
     return runWorkspaceDirectoryAction("choose");
+  }
+
+  function addWorkspaceDirectory(): Promise<void> {
+    return runWorkspaceDirectoryAction("add");
+  }
+
+  function removeWorkspaceDirectory(path: string): Promise<void> {
+    return runWorkspaceDirectoryMutation("remove", path);
+  }
+
+  function switchWorkspaceDirectory(path: string): Promise<void> {
+    return runWorkspaceDirectoryMutation("switch", path);
+  }
+
+  function migrateWorkspaceDirectoryData(
+    sourcePath: string,
+    targetPath: string
+  ): Promise<void> {
+    return runWorkspaceDirectoryAction("migrateData", {
+      sourcePath,
+      targetPath
+    });
   }
 
   function restoreWorkspaceDirectory(): Promise<void> {
@@ -241,6 +327,10 @@ export function useWorkspaceFeatureHostCoordinator(
     openAgentTeams,
     loadWorkspaceDirectory,
     chooseWorkspaceDirectory,
+    addWorkspaceDirectory,
+    removeWorkspaceDirectory,
+    switchWorkspaceDirectory,
+    migrateWorkspaceDirectoryData,
     restoreWorkspaceDirectory,
     migrateWorkspaceDirectory,
     closeSettings,

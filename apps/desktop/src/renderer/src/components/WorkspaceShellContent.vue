@@ -38,8 +38,19 @@ function bindDesktopShell(element: Element | ComponentPublicInstance | null) {
     @save-library-agents="shell.saveLibraryAgentSettings"
     @reset-library-agent="shell.resetLibraryAgentSettings"
     @choose-workspace-directory="shell.featureHost.chooseWorkspaceDirectory"
-    @restore-workspace-directory="shell.featureHost.restoreWorkspaceDirectory"
-    @migrate-workspace-directory="shell.featureHost.migrateWorkspaceDirectory"
+    @add-workspace-directory="shell.featureHost.addWorkspaceDirectory"
+    @remove-workspace-directory="
+      shell.featureHost.removeWorkspaceDirectory($event)
+    "
+    @switch-workspace-directory="
+      shell.featureHost.switchWorkspaceDirectory($event)
+    "
+    @migrate-workspace-directory-data="
+      shell.featureHost.migrateWorkspaceDirectoryData(
+        $event.sourcePath,
+        $event.targetPath
+      )
+    "
   />
   <div
     v-else

@@ -124,16 +124,53 @@ export function createConversationTestApi(): DeepWriteApi {
     },
     workspaceDirectory: {
       async list() {
-        return { path: null, previousPath: null, migrationSourcePath: null };
+        return {
+          path: null,
+          previousPath: null,
+          migrationSourcePath: null,
+          directories: []
+        };
       },
       async choose() {
         return null;
       },
+      async add() {
+        return null;
+      },
+      async remove() {
+        return {
+          path: null,
+          previousPath: null,
+          migrationSourcePath: null,
+          directories: []
+        };
+      },
+      async switch() {
+        return {
+          path: null,
+          previousPath: null,
+          migrationSourcePath: null,
+          directories: []
+        };
+      },
+      async migrateData() {
+        return null;
+      },
       async restore() {
-        return { path: null, previousPath: null, migrationSourcePath: null };
+        return {
+          path: null,
+          previousPath: null,
+          migrationSourcePath: null,
+          directories: []
+        };
       },
       async migrate() {
-        return { path: null, previousPath: null, migrationSourcePath: null };
+        return {
+          path: null,
+          previousPath: null,
+          migrationSourcePath: null,
+          directories: []
+        };
       }
     },
     appearance: {

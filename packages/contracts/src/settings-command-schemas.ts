@@ -28,10 +28,14 @@ import {
   PromptTemplatesSaveCommandEnvelopeSchema
 } from "./prompt-templates";
 import {
+  WorkspaceDirectoryAddCommandEnvelopeSchema,
   WorkspaceDirectoryChooseCommandEnvelopeSchema,
   WorkspaceDirectoryListCommandEnvelopeSchema,
+  WorkspaceDirectoryMigrateCommandEnvelopeSchema,
+  WorkspaceDirectoryMigrateDataCommandEnvelopeSchema,
+  WorkspaceDirectoryRemoveCommandEnvelopeSchema,
   WorkspaceDirectoryRestoreCommandEnvelopeSchema,
-  WorkspaceDirectoryMigrateCommandEnvelopeSchema
+  WorkspaceDirectorySwitchCommandEnvelopeSchema
 } from "./workspace-directory";
 import { ToolLibraryCommandEnvelopeSchemas } from "./tool-library";
 import { ResourceManagerCommandEnvelopeSchema } from "./resource-manager";
@@ -55,6 +59,10 @@ export const SettingsCommandEnvelopeSchemas = [
   WorkspaceDirectoryChooseCommandEnvelopeSchema,
   WorkspaceDirectoryRestoreCommandEnvelopeSchema,
   WorkspaceDirectoryMigrateCommandEnvelopeSchema,
+  WorkspaceDirectoryAddCommandEnvelopeSchema,
+  WorkspaceDirectoryRemoveCommandEnvelopeSchema,
+  WorkspaceDirectorySwitchCommandEnvelopeSchema,
+  WorkspaceDirectoryMigrateDataCommandEnvelopeSchema,
   AppearanceListCommandEnvelopeSchema,
   AppearanceSaveCommandEnvelopeSchema,
   AppearanceFontsListCommandEnvelopeSchema,

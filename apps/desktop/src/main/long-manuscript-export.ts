@@ -90,6 +90,7 @@ export async function exportLongManuscript(
   const input = ExportLongManuscriptInputSchema.parse(rawInput);
   const selection = await dialog.showOpenDialog(window, {
     title: "选择长篇导出位置",
+    ...(process.env.METAVERSE_OUTPUTS_ROOT ? { defaultPath: join(process.env.METAVERSE_OUTPUTS_ROOT, "exports") } : {}),
     buttonLabel: "导出到这里",
     properties: ["openDirectory", "createDirectory"]
   });

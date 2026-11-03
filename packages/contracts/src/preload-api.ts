@@ -227,6 +227,13 @@ export interface DeepWriteApi
     choose(): Promise<WorkspaceDirectorySettings | null>;
     restore(): Promise<WorkspaceDirectorySettings>;
     migrate(): Promise<WorkspaceDirectorySettings>;
+    add(): Promise<WorkspaceDirectorySettings | null>;
+    remove(path: string): Promise<WorkspaceDirectorySettings>;
+    switch(path: string): Promise<WorkspaceDirectorySettings>;
+    migrateData(
+      sourcePath: string,
+      targetPath: string
+    ): Promise<WorkspaceDirectorySettings | null>;
   };
   appearance: {
     list(): Promise<AppearanceSettingsSnapshot>;
