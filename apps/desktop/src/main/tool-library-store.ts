@@ -108,6 +108,7 @@ export class ToolLibraryStore {
     if (skipDefaults) return root;
     await this.installAddedDefault(root, "voice-design");
     await this.installAddedDefault(root, "video");
+    await this.installAddedDefault(root, "video-first-last-frame");
     await this.mergeCreationTools(root);
     return root;
   }

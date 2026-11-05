@@ -213,6 +213,39 @@ describe("editable tool library", () => {
       "video"
     );
   });
+  it("adds the first-last-frame video tool once and respects user edits and deletion", async () => {
+    const { store, directory, defaults } = await setup();
+    await store.list();
+    const id = "video-first-last-frame";
+    await mkdir(join(defaults, id));
+    await writeFile(
+      join(defaults, id, "tool.json"),
+      JSON.stringify({
+        version: 1,
+        id,
+        name: "影视设计（首尾帧）",
+        description: "首尾帧视频脚本",
+        entryFile: "SKILL.md",
+        relatedToolIds: ["creation", "video"]
+      })
+    );
+    await writeFile(join(defaults, id, "SKILL.md"), "原始首尾帧说明");
+    await writeFile(
+      join(defaults, id, "prompt-template.md"),
+      "首尾帧脚本模板"
+    );
+    expect((await store.list()).tools.map(({ id }) => id)).toContain(id);
+    expect(
+      await readFile(join(directory, id, "prompt-template.md"), "utf8")
+    ).toBe("首尾帧脚本模板");
+    await writeFile(join(directory, id, "SKILL.md"), "用户改过的首尾帧说明");
+    await store.list();
+    expect(await readFile(join(directory, id, "SKILL.md"), "utf8")).toBe(
+      "用户改过的首尾帧说明"
+    );
+    await store.delete(id);
+    expect((await store.list()).tools.map(({ id }) => id)).not.toContain(id);
+  });
   it("installs defaults once in the work directory and edits the installed files", async () => {
     const { store, directory } = await setup();
     expect((await store.list()).tools).toHaveLength(2);

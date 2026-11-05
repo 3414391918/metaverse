@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "id": "video-first-last-frame",
+  "name": "影视设计（首尾帧）",
+  "description": "选取小说正文中的两张图片作为首帧和尾帧，结合正文上下文与人物设计，生成包含两帧图片及完整视频生成提示词的首尾帧视频脚本。",
+  "entryFile": "SKILL.md",
+  "relatedToolIds": ["creation", "video"]
+}
