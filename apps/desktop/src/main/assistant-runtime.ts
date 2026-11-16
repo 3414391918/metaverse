@@ -157,7 +157,7 @@ export class AssistantRuntime {
     const overlay = join(configs, "metaverse.patch.json");
     await writeGenerated(
       overlay,
-      JSON.stringify(assistantOverlay(this.options.plugin, workspace, storage.relocated ? configs : undefined), null, 2)
+      JSON.stringify(assistantOverlay(this.options.plugin, workspace, configs), null, 2)
     );
     const guide = join(home, "platform.md");
     await writeGenerated(
@@ -191,7 +191,7 @@ export class AssistantRuntime {
         "web",
         "--patch",
         overlay,
-        ...(storage.relocated && existsSync(join(configs, "cordis.patch.yml"))
+        ...(existsSync(join(configs, "cordis.patch.yml"))
           ? ["--patch", join(configs, "cordis.patch.yml")]
           : []),
         "--no-open",
@@ -207,7 +207,7 @@ export class AssistantRuntime {
           ...proxyEnvironment,
           ELECTRON_RUN_AS_NODE: undefined,
           DSH_HOME: home,
-          ...(storage.relocated ? {
+          ...(inheritedEnvironment.METAVERSE_CONFIGS_ROOT && inheritedEnvironment.METAVERSE_OUTPUTS_ROOT ? {
             DSH_AGENTS_HOME: join(inheritedEnvironment.METAVERSE_CONFIGS_ROOT!, "agents"),
             npm_config_cache: join(inheritedEnvironment.METAVERSE_OUTPUTS_ROOT!, "cache", "npm")
           } : {}),

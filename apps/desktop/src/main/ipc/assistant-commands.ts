@@ -3,6 +3,7 @@ import { lstat, realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { CommandEnvelope, CommandResult } from "@deepwrite/contracts";
 import { AssistantConnectionSchema } from "@deepwrite/contracts";
+import { assistantPluginProfiles } from "../assistant-storage";
 import { assistantRuntime } from "../assistant-service";
 import type { IpcCommandContext } from "./command-types";
 export async function handleAssistantCommands(
@@ -21,9 +22,7 @@ export async function handleAssistantCommands(
     if (command.type === "assistant.openConfiguration") {
       const root = await realpath(path);
       const target = join(
-        root,
-        "assistant",
-        "profiles",
+        assistantPluginProfiles(root),
         "web",
         "cordis.patch.yml"
       );
