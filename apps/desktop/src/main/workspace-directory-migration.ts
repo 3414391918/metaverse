@@ -26,9 +26,12 @@ async function hashFile(path: string): Promise<string> {
 async function inspect(
   source: string,
   destination: string,
-  plan: CopyPlan
+  plan: CopyPlan,
+  sharedProfilesLink: string
 ): Promise<void> {
   const sourceInfo = await lstat(source);
+  if (source === sharedProfilesLink && sourceInfo.isSymbolicLink() && process.env.METAVERSE_APP_ROOT &&
+      await realpath(source) === join(process.env.METAVERSE_APP_ROOT, "plugins", "profiles")) return;
   if (sourceInfo.isSymbolicLink())
     throw new Error("迁移目录中包含符号链接，已停止迁移。");
   const destinationInfo = await lstat(destination).catch(
@@ -46,7 +49,7 @@ async function inspect(
     if (!destinationInfo) plan.directories.push(destination);
     for (const entry of await readdir(source)) {
       if (entry === ".metaverse") continue;
-      await inspect(join(source, entry), join(destination, entry), plan);
+      await inspect(join(source, entry), join(destination, entry), plan, sharedProfilesLink);
     }
     return;
   }
@@ -81,10 +84,11 @@ export async function copyWorkspaceData(
   if (nested(source, destination) || nested(destination, source)) {
     throw new Error("来源目录与目标目录不能相同或相互包含。");
   }
+  const sharedProfilesLink = join(source, "assistant", "profiles");
   const plan: CopyPlan = { directories: [], files: [] };
   for (const entry of await readdir(source)) {
     if (entry === ".metaverse") continue;
-    await inspect(join(source, entry), join(destination, entry), plan);
+    await inspect(join(source, entry), join(destination, entry), plan, sharedProfilesLink);
   }
   const createdFiles: string[] = [];
   const createdDirectories: string[] = [];

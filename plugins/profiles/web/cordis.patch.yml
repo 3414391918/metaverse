@@ -1,0 +1,43 @@
+- id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  config:
+    providers:
+      venice:
+        displayName: Venice
+        apiKeyEnv: VENICE_API_KEY
+        api: openai-completions
+        baseURL: https://api.venice.ai/api/v1
+        models:
+          - id: gemma-4-uncensored
+            name: Gemma 4 Uncensored
+            contextWindow: 256000
+            maxTokens: 8192
+            input:
+              - text
+              - image
+            reasoningEfforts: false
+            compat:
+              chatTemplateKwargs: {}
+              chatTemplateArgs: {}
+          - id: qwen-3-6-plus
+            name: Qwen 3.6 Plus Uncensored
+            contextWindow: 1000000
+            maxTokens: 65536
+            input:
+              - text
+              - image
+            reasoningEfforts: false
+            compat:
+              chatTemplateKwargs: {}
+              chatTemplateArgs: {}
+          - id: claude-opus-5-5
+            name: Claude Opus 5.5
+      openai:
+        apiKeyEnv: OPENAI_API_KEY
+        models:
+          - id: gpt-6-astra
+            name: GPT-6 Astra
+          - id: gpt-6.1-sol
+            name: GPT-6.1 Sol
+- id: agent-instructions
+  disabled: false

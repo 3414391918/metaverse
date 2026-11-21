@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { cp, lstat, readdir, readlink, rename, rm, writeFile } from "node:fs/promises";
+import { cp, lstat, readdir, readlink, realpath, symlink, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { ensureStorageDirectory } from "../storage-paths";
 
@@ -13,8 +13,44 @@ export function assistantStoragePaths(workspace: string, _environment: NodeJS.Pr
   return { home, configs: home, relocated: false };
 }
 
-export function assistantPluginProfiles(workspace: string) {
-  return join(workspace, "assistant", "profiles");
+export function assistantPluginProfiles(workspace: string, environment = process.env) {
+  return environment.METAVERSE_APP_ROOT
+    ? join(environment.METAVERSE_APP_ROOT, "plugins", "profiles")
+    : join(workspace, "assistant", "profiles");
+}
+
+async function connectPluginProfiles(workspace: string, environment: NodeJS.ProcessEnv) {
+  if (!environment.METAVERSE_APP_ROOT) return;
+  const target = assistantPluginProfiles(workspace, environment);
+  const link = join(workspace, "assistant", "profiles");
+  ensureStorageDirectory(dirname(target));
+  if (await exists(link)) {
+    if ((await lstat(link)).isSymbolicLink()) {
+      ensureStorageDirectory(target);
+      if (await realpath(link) !== resolve(target)) throw new Error("助手插件目录指向了意外的位置。");
+      return;
+    }
+    ensureStorageDirectory(link);
+    if (await exists(target)) {
+      // Preserve a workspace's previous independent configuration before sharing the project profile.
+      const backup = join(workspace, "assistant", "profiles.before-project");
+      if (await exists(backup)) throw new Error("旧插件备份已存在，无法自动迁移。");
+      await rename(link, backup);
+    } else {
+      try {
+        await rename(link, target);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
+        const staging = target + ".migrating";
+        if (await exists(staging)) throw new Error("插件迁移尚未完成。");
+        await cp(link, staging, { recursive: true, verbatimSymlinks: true });
+        await rename(staging, target);
+        await rm(link, { recursive: true });
+      }
+    }
+  }
+  ensureStorageDirectory(target);
+  await symlink(target, link, process.platform === "win32" ? "junction" : "dir");
 }
 
 /** Consolidate a stopped assistant into the workspace; never merge conflicting data. */
@@ -35,6 +71,7 @@ export async function prepareAssistantStorage(workspace: string, environment: No
   if (pluginsExist) ensureStorageDirectory(oldPlugins);
   if (!roots.length && !pluginsExist) {
     ensureStorageDirectory(paths.home);
+    await connectPluginProfiles(workspace, environment);
     return paths;
   }
   if (await exists(paths.home)) throw new Error("智能体迁移目标已存在，不会覆盖，请先检查 assistant 目录。");
@@ -75,5 +112,6 @@ export async function prepareAssistantStorage(workspace: string, environment: No
   // Sources are removed only after a complete destination is published.
   for (const root of roots) await rm(root, { recursive: true });
   if (pluginsExist) await rm(oldPlugins, { recursive: true });
+  await connectPluginProfiles(workspace, environment);
   return paths;
 }

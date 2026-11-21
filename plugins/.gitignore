@@ -1,0 +1,6 @@
+profiles/*/*
+!profiles/*/package.json
+!profiles/*/pnpm-lock.yaml
+!profiles/*/pnpm-workspace.yaml
+!profiles/*/cordis.yml
+!profiles/*/cordis.patch.yml
